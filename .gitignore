@@ -1,4 +1,11 @@
 /web/node_modules
+# Modified by DealFlow CRM on 2026-10-24: keep local secrets and runtime data private.
+/.local/
+/.playwright-cli/
+/output/playwright/
+/.env
+/server/config.local.yaml
+/server/dealflow-server.exe
 /web/dist
 
 .DS_Store

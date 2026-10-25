@@ -1,5 +1,6 @@
 node_modules/*
-package-lock.json
+# Modified by DealFlow CRM on 2026-10-24: commit npm lockfile for reproducibility.
+!package-lock.json
 yarn.lock
 bun.lockb
 config.yaml

@@ -1,3 +1,16 @@
+<!-- Modified by DealFlow CRM on 2026-10-24: project introduction; original upstream content follows. -->
+# DealFlow CRM · 企销云
+
+基于 GVA 的多租户销售与回款学习项目。按用户 2026-10-25 的最新要求，当前只交付 Day 1：固定 GVA 基线、运行验证与项目文档。后续业务开发暂停。
+
+[项目说明](DEALFLOW.md) · [快速启动](docs/day1-setup.md) · [范围与故事](docs/scope.md) · [源码链路](docs/architecture-day1.md) · [今日进度](docs/progress/2026-10-24-day1.md) · [上游来源与许可](UPSTREAM.md)
+
+[后续扩展计划](docs/planning/DealFlow-CRM-扩展实施计划.md) · [当前范围与归档记录](docs/progress/2026-10-25-scope-reset.md)
+
+固定 GVA `v2.9.2-stable` / `a6882210a80bb27e3aa5dff0b4c21aa4afe8988a`。当前 SHA 的实际 LICENSE 为 BSL 1.1，详情见 UPSTREAM；以下保留上游原始介绍，其版本徽章与许可描述不替代本项目源码和实际 LICENSE。
+
+---
+
 <div align="center">
   <img src="http://qmplusimg.henrongyi.top/gvalogo.jpg" width="300" height="300" />
 </div>
