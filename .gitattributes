@@ -1,2 +1,3 @@
 *.sql linguist-language=GO
+server/cmd/dealflow-migrate/*.sql text eol=lf
 *.html linguist-language=GO

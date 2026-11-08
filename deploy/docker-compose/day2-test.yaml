@@ -1,0 +1,18 @@
+services:
+  mysql:
+    image: mysql:8.0.44
+    ports:
+      - "127.0.0.1:${DEALFLOW_TEST_MYSQL_PORT:-13307}:3306"
+    environment:
+      MYSQL_DATABASE: dealflow_crm_test
+      MYSQL_USER: dealflow_test
+      MYSQL_PASSWORD: ${DEALFLOW_TEST_MYSQL_PASSWORD:?Set a local test password}
+      MYSQL_ROOT_PASSWORD: ${DEALFLOW_TEST_MYSQL_ROOT_PASSWORD:?Set a local root password}
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=tcp -h 127.0.0.1 -u \"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -Nse 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s

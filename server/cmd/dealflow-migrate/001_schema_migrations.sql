@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS crm_schema_migrations (
+    version INT UNSIGNED NOT NULL PRIMARY KEY,
+    checksum BINARY(32) NOT NULL
+) ENGINE=InnoDB
