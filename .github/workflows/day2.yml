@@ -1,0 +1,53 @@
+name: Day 2 baseline
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      DEALFLOW_TEST_MYSQL_PASSWORD: ci-test-only-password
+      DEALFLOW_TEST_MYSQL_ROOT_PASSWORD: ci-root-only-password
+      DEALFLOW_TEST_DSN: dealflow_test:ci-test-only-password@tcp(127.0.0.1:13307)/dealflow_crm_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: .go-version
+          cache-dependency-path: server/go.sum
+      - name: Start test MySQL and wait for an authenticated query
+        run: docker compose -f deploy/docker-compose/day2-test.yaml up -d --wait --wait-timeout 180
+      - name: Migrate and check repeatability
+        working-directory: server
+        run: |
+          go run -mod=readonly ./cmd/dealflow-migrate
+          go test -mod=readonly ./cmd/dealflow-migrate ./router/system -count=2
+      - name: Build server
+        working-directory: server
+        run: go build -mod=readonly . ./cmd/dealflow-migrate
+      - name: Stop test MySQL
+        if: always()
+        run: docker compose -f deploy/docker-compose/day2-test.yaml down
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Pin npm
+        run: npm install --global "npm@$(cat .npm-version)"
+      - name: Install, check types and build
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build

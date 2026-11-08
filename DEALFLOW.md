@@ -1,6 +1,6 @@
 # DealFlow CRM · 企销云
 
-基于 GVA 的多租户销售与回款学习项目。按用户 2026-10-25 的最新要求，目前只做到 Day 1。正式租户授权、交易闭环、工作流、Kafka 和 Kubernetes 保留为后续规划，暂不实施。
+基于 GVA 的多租户销售与回款学习项目。当前范围为 Day 2 的数据库迁移与测试环境。正式租户授权、交易闭环、工作流、Kafka 和 Kubernetes 保留为后续规划。
 
 项目入口：[范围与故事](docs/scope.md) · [启动](docs/day1-setup.md) · [上游归属](UPSTREAM.md) · [身份调用链](docs/architecture-day1.md) · [今日进度](docs/progress/2026-10-24-day1.md) · [56 天计划](docs/planning/DealFlow-CRM-56天每日计划.md)。
 
@@ -10,4 +10,4 @@
 
 快速启动：执行 `./scripts/prepare-local.ps1`；在 `server/` 执行 `go mod download`、`go run . -c config.local.yaml`；另一个终端在 `web/` 执行 `npm ci`、`npm exec vite -- --host 127.0.0.1 --mode development`。访问 http://127.0.0.1:8080 ，在初始化页面配置专用 MySQL 空库并设置管理员密码。完整前提与验收见启动文档。
 
-超出 Day 1 的 S1 实验代码、脚本与运行记录已移入忽略的本地归档目录，当前 server/web 应用源码保持上游基线。上游示例客户不代表本项目已经完成多租户 CRM。
+S1 实验保留在本地归档目录。Day 2 的工程改动与验证记录见 [Day 2 报告](docs/progress/2026-11-08-day2.md)。

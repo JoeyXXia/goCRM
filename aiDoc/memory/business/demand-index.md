@@ -9,6 +9,8 @@
 
 ## Done
 
+- [Day 2 数据库迁移与测试环境](done/dealflow-day2.md)
+
 <!-- Modified by DealFlow CRM on 2026-10-25: record authorized Day 1 GitHub delivery. -->
 - [Day 1 GitHub 交付](done/day1-github.md)
 

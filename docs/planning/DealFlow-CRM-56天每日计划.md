@@ -1,6 +1,6 @@
 # DealFlow CRM：56 天每日执行清单
 
-2026-10-25 最新要求：当前只做到 Day 1，不自动推进 Day 2 或 S1。新增套餐、工作流、异步服务、Kafka 与 Kubernetes 保留于 [扩展实施计划](./DealFlow-CRM-扩展实施计划.md)，恢复开发后再依据该计划调整后续日程。本清单继续作为核心业务的详细任务参考。
+2026-11-08 当前执行范围为本清单 Day 2。套餐、工作流、异步服务、Kafka 与 Kubernetes 保留于 [扩展实施计划](./DealFlow-CRM-扩展实施计划.md)。
 
 配套：[项目总计划](./DealFlow-CRM-项目总计划.md) · [面试与 AI 协作手册](./DealFlow-CRM-面试与AI协作手册.md)。
 
