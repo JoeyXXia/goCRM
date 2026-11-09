@@ -8,35 +8,22 @@ import (
 	"database/sql/driver"
 	_ "embed"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/flipped-aurora/gin-vue-admin/server/internal/testmysql"
 	"github.com/go-sql-driver/mysql"
 )
 
-const testDatabase = "dealflow_crm_test"
 const lockName = "dealflow_crm_test:migrate"
 
 //go:embed 001_schema_migrations.sql
 var baselineSQL string
 
-func testConfig(dsn string) (*mysql.Config, error) {
-	if dsn == "" {
-		return nil, errors.New("set DEALFLOW_TEST_DSN")
-	}
-	cfg, err := mysql.ParseDSN(dsn)
-	if err != nil {
-		return nil, errors.New("invalid DEALFLOW_TEST_DSN format")
-	}
-	if cfg.DBName != testDatabase {
-		return nil, fmt.Errorf("DEALFLOW_TEST_DSN must select %s", testDatabase)
-	}
-	return cfg, nil
-}
-
-func migrate(ctx context.Context, db *sql.DB) error {
+func migrate(ctx context.Context, db *sql.DB, includeTenants bool) error {
 	// The named lock belongs to the connection, so all steps use this session.
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -48,8 +35,8 @@ func migrate(ctx context.Context, db *sql.DB) error {
 	if err := conn.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&database); err != nil {
 		return fmt.Errorf("verify selected test database: %w", err)
 	}
-	if database != testDatabase {
-		return fmt.Errorf("selected database must be %s", testDatabase)
+	if database != testmysql.Database {
+		return fmt.Errorf("selected database must be %s", testmysql.Database)
 	}
 
 	var acquired sql.NullInt64
@@ -87,6 +74,9 @@ func migrate(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("read migration 001: %w", err)
 	case !bytes.Equal(recorded, checksum[:]):
 		return errors.New("migration 001 checksum mismatch")
+	}
+	if includeTenants {
+		return migrateTenants(ctx, conn)
 	}
 	return nil
 }
@@ -129,7 +119,12 @@ func verifyBaseline(ctx context.Context, conn *sql.Conn) error {
 }
 
 func main() {
-	cfg, err := testConfig(os.Getenv("DEALFLOW_TEST_DSN"))
+	tenants := flag.Bool("tenants", false, "also apply 002 after the GVA user schema exists")
+	flag.Parse()
+	if flag.NArg() != 0 {
+		log.Fatal("unexpected migration arguments")
+	}
+	cfg, err := testmysql.Config(os.Getenv("DEALFLOW_TEST_DSN"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -141,8 +136,11 @@ func main() {
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := migrate(ctx, db); err != nil {
+	if err := migrate(ctx, db, *tenants); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Migration 001 verified")
+	if *tenants {
+		fmt.Println("Migration 002 verified")
+	}
 }

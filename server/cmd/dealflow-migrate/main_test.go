@@ -8,11 +8,13 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/flipped-aurora/gin-vue-admin/server/internal/testmysql"
 )
 
 func TestRejectNonTestDatabase(t *testing.T) {
 	for _, dsn := range []string{"", "invalid", "user@tcp(127.0.0.1:3306)/", "user@tcp(127.0.0.1:3306)/dealflow_crm_day1"} {
-		if _, err := testConfig(dsn); err == nil {
+		if _, err := testmysql.Config(dsn); err == nil {
 			t.Fatalf("accepted DSN with missing or invalid test database: %q", dsn)
 		}
 	}
@@ -23,7 +25,7 @@ func TestMySQLMigrationAndRollback(t *testing.T) {
 	if dsn == "" {
 		t.Skip("set DEALFLOW_TEST_DSN to run MySQL integration")
 	}
-	cfg, err := testConfig(dsn)
+	cfg, err := testmysql.Config(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +38,7 @@ func TestMySQLMigrationAndRollback(t *testing.T) {
 	defer cancel()
 
 	for i := 0; i < 2; i++ {
-		if err := migrate(ctx, db); err != nil {
+		if err := migrate(ctx, db, false); err != nil {
 			t.Fatal(err)
 		}
 	}
