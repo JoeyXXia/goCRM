@@ -30,7 +30,7 @@ jobs:
           go test -mod=readonly ./cmd/dealflow-migrate ./router/system -count=2
       - name: Build server
         working-directory: server
-        run: go build -mod=readonly . ./cmd/dealflow-migrate
+        run: go build -mod=readonly . ./cmd/dealflow-migrate ./cmd/dealflow-tenant
       - name: Stop test MySQL
         if: always()
         run: docker compose -f deploy/docker-compose/day2-test.yaml down

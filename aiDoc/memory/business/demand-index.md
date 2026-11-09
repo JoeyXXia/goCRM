@@ -9,6 +9,8 @@
 
 ## Done
 
+- [Day 3 租户、成员与演示身份](done/dealflow-day3.md)
+
 - [Day 2 数据库迁移与测试环境](done/dealflow-day2.md)
 
 <!-- Modified by DealFlow CRM on 2026-10-25: record authorized Day 1 GitHub delivery. -->
