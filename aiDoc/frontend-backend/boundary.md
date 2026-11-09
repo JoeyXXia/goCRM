@@ -15,6 +15,12 @@
 - 后端必须提供完整而准确的 Swagger 接口说明
 - 前端接口调用应以实际 Swagger 与后端实现为准
 
+## DealFlow 部门接口
+
+- `GET /dealflow/departments/:id` 和 `PATCH /dealflow/departments/:id` 沿用 GVA 的 `x-token` 和接口授权。请求头 `X-Tenant-ID` 使用单个正整数 ID。服务端每次核对账号、租户及成员的当前状态。
+- 路径 `:id` 表示部门 ID。接口不接收查询参数。PATCH 只接收 JSON 对象 `{"name":"部门名"}`，仅当前租户管理员可修改，名称去除首尾空白后须为 1 至 128 个字符。
+- 保持 `{ code, data, msg }`。非本租户部门与不存在的部门同样返回 404，租户或角色校验失败返回 403。GVA 的接口权限拒绝沿用 HTTP 200 和非零 `code`。响应头 `X-Request-ID` 由服务端生成。
+
 ## 变更规则
 
 - 涉及破坏性接口调整时，要先写清楚变更范围

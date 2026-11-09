@@ -9,6 +9,8 @@
 
 ## Done
 
+- [Day 4 可信 TenantContext](done/dealflow-day4.md)
+
 - [Day 3 租户、成员与演示身份](done/dealflow-day3.md)
 
 - [Day 2 数据库迁移与测试环境](done/dealflow-day2.md)

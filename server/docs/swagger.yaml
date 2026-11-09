@@ -1,4 +1,23 @@
 definitions:
+  tenant.RenameDepartmentInput:
+    properties:
+      name:
+        maxLength: 128
+        type: string
+    required:
+    - name
+    type: object
+  tenant.Department:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      tenantId:
+        type: integer
+    type: object
   common.JSONMap:
     additionalProperties: true
     type: object
@@ -1931,6 +1950,156 @@ info:
   title: Gin-Vue-Admin Swagger API接口文档
   version: v2.7.9-beta
 paths:
+  /dealflow/departments/{id}:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 部门 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Department'
+              type: object
+        "400":
+          description: Bad Request
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 查询当前租户内的部门
+      tags:
+      - DealFlow
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 部门 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 部门名称
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.RenameDepartmentInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 当前租户管理员修改部门名称
+      tags:
+      - DealFlow
   /api/createApi:
     post:
       consumes:
