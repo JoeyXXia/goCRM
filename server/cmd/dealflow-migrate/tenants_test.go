@@ -108,15 +108,23 @@ func TestDay3TenantLifecycle(t *testing.T) {
 		if err := svc.SeedDemo(ctx, changed); err == nil || !reflect.DeepEqual(before, read()) {
 			t.Fatal("conflicting seed must fail and preserve the original memberships")
 		}
+		deptA := salesA.DepartmentID
 		salesA.ID = 0
 		expectMySQLCode(t, db.Create(&salesA).Error, 1062)
 		salesA.UserID = disabled
 		salesA.DepartmentID = salesB.DepartmentID
-		err := db.Create(&salesA).Error
-		var fkErr *driver.MySQLError
-		// MySQL can omit constraint details for restricted accounts (1216).
-		if !errors.As(err, &fkErr) || (fkErr.Number != 1216 && fkErr.Number != 1452) {
-			t.Fatalf("expected MySQL foreign key violation, got %v", err)
+		rejectCrossTenantDepartment := func(err error) {
+			t.Helper()
+			var fkErr *driver.MySQLError
+			// MySQL can omit constraint details for restricted accounts (1216).
+			if !errors.As(err, &fkErr) || (fkErr.Number != 1216 && fkErr.Number != 1452) {
+				t.Fatalf("expected MySQL foreign key violation, got %v", err)
+			}
+		}
+		rejectCrossTenantDepartment(db.Create(&salesA).Error)
+		rejectCrossTenantDepartment(db.Model(&salesB).Update("department_id", deptA).Error)
+		if !reflect.DeepEqual(before, read()) {
+			t.Fatal("cross-tenant insert or update changed memberships")
 		}
 	})
 

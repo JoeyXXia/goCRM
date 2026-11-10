@@ -18,7 +18,9 @@
 ## DealFlow 企业与平台接口
 
 - 企业接口沿用 GVA 的 `x-token`。请求头 `X-Tenant-ID` 使用单个正整数 ID。服务端每次核对账号、租户及成员的当前状态，并在选中租户的域内执行 DealFlow 动作策略。
+- `GET /dealflow/workspaces` 从 JWT 识别账号，只返回该账号当前启用的成员关系及企业。响应项包含 `id`、`name`、`departmentId`、`roleKey`，其中两个 ID 都是十进制字符串。该接口拒绝查询参数、`X-Tenant-ID` 和专用平台账号。
 - `GET /dealflow/menu` 返回可见项 `[{ "key": "departments", "canRename": true }]`，其中 `canRename` 由当前成员角色决定。部门 API 在每次直接请求时执行动作校验。
+- Vue 工作台在当前标签页只保存所选企业的 ID。刷新时重新发现成员关系并加载菜单。切换企业先清空菜单和详情，再取消旧请求。直接访问改名页面时，工作台先读取当前菜单能力，服务端仍在每次 PATCH 中验证动作权限。
 - 部门操作使用 `GET /dealflow/departments/:id` 和 `PATCH /dealflow/departments/:id`。
 - 路径 `:id` 表示部门 ID。接口不接收查询参数。PATCH 只接收 JSON 对象 `{"name":"部门名"}`，仅当前租户管理员可修改，名称去除首尾空白后须为 1 至 128 个字符。
 - `GET /dealflow/platform/tenants/:id` 只允许配置的专用平台账号，返回租户的 `id`、`code`、`name` 和 `status`。该接口拒绝 `X-Tenant-ID` 和查询参数。服务启动时从 `DEALFLOW_PLATFORM_OPERATOR_UUID` 读取现有账号的 UUID。未配置有效 UUID 时平台入口拒绝访问。

@@ -192,6 +192,10 @@ service.interceptors.response.use(
       closeLoading(error.config?.loadingOption)
     }
 
+    if (axios.isCancel(error)) {
+      return Promise.reject(error)
+    }
+
     if (!error.response) {
       resetLoading()
       emitter.emit('show-error', {

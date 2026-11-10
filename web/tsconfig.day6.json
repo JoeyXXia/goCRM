@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.day2.json",
+  "compilerOptions": {
+    "checkJs": false,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": { "@/*": ["./src/*"] },
+    "skipLibCheck": true
+  },
+  "files": ["src/api/dealflow.ts", "src/pinia/modules/dealflow-session.ts"]
+}

@@ -46,6 +46,7 @@
     </div>
 
     <div class="ml-2 flex items-center">
+      <RouterLink :to="{ name: 'DealflowWorkspace' }">DealFlow 工作台</RouterLink>
       <tools />
       <el-dropdown>
         <div class="flex justify-center items-center h-full w-full">

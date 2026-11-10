@@ -16,6 +16,26 @@ const routes = [
     component: () => import('@/view/login/index.vue')
   },
   {
+    path: '/dealflow',
+    name: 'DealflowWorkspace',
+    component: () => import('@/view/dealflow/workspace.vue'),
+    meta: { title: 'DealFlow 工作台', dealflow: true },
+    children: [
+      {
+        path: 'departments/:id([1-9][0-9]*)',
+        name: 'DealflowDepartment',
+        component: () => import('@/view/dealflow/department.vue'),
+        meta: { title: '部门详情' }
+      },
+      {
+        path: 'departments/:id([1-9][0-9]*)/rename',
+        name: 'DealflowRenameDepartment',
+        component: () => import('@/view/dealflow/department.vue'),
+        meta: { title: '修改部门名称', renameDepartment: true }
+      }
+    ]
+  },
+  {
     path: '/scanUpload',
     name: 'ScanUpload',
     meta: {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -181,20 +182,40 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 			t.Fatalf("tenant B changed: before %+v, after %+v", deptB, got)
 		}
 	})
+	const workspaces = "/api/dealflow/workspaces"
 	t.Run("recheck_membership_tenant_and_user_status", func(t *testing.T) {
 		membership := tx.Model(&model.Membership{}).Where("tenant_id = ? AND user_id = ?", tenantA.ID, userA.ID)
+		checkWorkspaces := func(want ...tenant.Workspace) {
+			t.Helper()
+			data := call(t, "GET", workspaces, tokenA, "", 200)
+			var got []tenant.Workspace
+			requireOK(t, json.Unmarshal(data, &got))
+			if got == nil || !slices.Equal(got, want) {
+				t.Fatalf("workspaces: got %+v, want %+v", got, want)
+			}
+		}
+		a := tenant.Workspace{ID: fmt.Sprint(tenantA.ID), Name: tenantA.Name, DepartmentID: fmt.Sprint(deptA.ID), RoleKey: "tenant_admin"}
+		b := tenant.Workspace{ID: fmt.Sprint(tenantB.ID), Name: tenantB.Name, DepartmentID: fmt.Sprint(deptB.ID), RoleKey: "sales"}
+		checkWorkspaces(a)
+		call(t, "GET", workspaces, tokenA+"invalid", "", 401)
+		call(t, "GET", workspaces, tokenA, "", 400, tenantB.ID)
+		call(t, "GET", workspaces+"?tenant_id="+b.ID, tokenA, "", 400)
 		requireOK(t, membership.Update("status", "disabled").Error)
+		checkWorkspaces()
 		call(t, "GET", url(deptA.ID), tokenA, "", 403, tenantA.ID)
 		requireOK(t, membership.Update("status", "active").Error)
 		requireOK(t, tx.Model(&model.Tenant{}).Where("id = ?", tenantA.ID).Update("status", "disabled").Error)
+		checkWorkspaces()
 		call(t, "GET", url(deptA.ID), tokenA, "", 403, tenantA.ID)
 		requireOK(t, tx.Model(&model.Tenant{}).Where("id = ?", tenantA.ID).Update("status", "active").Error)
 		requireOK(t, tx.Model(&userA).Update("enable", 2).Error)
+		checkWorkspaces()
 		call(t, "GET", url(deptA.ID), tokenA, "", 403, tenantA.ID)
 		requireOK(t, tx.Model(&userA).Update("enable", 1).Error)
 		requireOK(t, tx.Create(&model.Membership{
 			TenantID: tenantB.ID, UserID: uint64(userA.ID), DepartmentID: deptB.ID, Status: "active", RoleKey: "sales",
 		}).Error)
+		checkWorkspaces(a, b)
 		const menu = "/api/dealflow/menu"
 		if got := string(call(t, "GET", menu, tokenA, "", 200, tenantA.ID)); got != `[{"key":"departments","canRename":true}]` {
 			t.Fatalf("unexpected admin menu: %s", got)
@@ -205,9 +226,11 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		call(t, "GET", url(deptB.ID), tokenA, "", 200, tenantB.ID)
 		call(t, "PATCH", url(deptB.ID), tokenA, `{"name":"wrong role"}`, 403, tenantB.ID)
 		requireOK(t, tx.Model(&model.Membership{}).Where("tenant_id = ? AND user_id = ?", tenantB.ID, userA.ID).Update("status", "disabled").Error)
+		checkWorkspaces(a)
 		call(t, "GET", menu, tokenA, "", 403, tenantB.ID)
 		call(t, "GET", url(deptB.ID), tokenA, "", 403, tenantB.ID)
 		requireOK(t, tx.Delete(&userA).Error)
+		checkWorkspaces()
 		call(t, "GET", url(deptA.ID), tokenA, "", 403, tenantA.ID)
 	})
 	t.Run("platform_and_upstream_customer_boundary", func(t *testing.T) {
@@ -221,6 +244,7 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		call(t, "GET", path, operatorToken, "", 400, tenantB.ID)
 		call(t, "GET", url(operatorDept.ID), operatorToken, "", 403, operatorTenant.ID)
 		call(t, "GET", "/api/dealflow/menu", operatorToken, "", 403, operatorTenant.ID)
+		call(t, "GET", workspaces, operatorToken, "", 403)
 
 		customer := examplemodel.ExaCustomer{CustomerName: "GVA fixture", SysUserID: userB.ID, SysUserAuthorityID: 704}
 		requireOK(t, tx.Omit(clause.Associations).Create(&customer).Error)

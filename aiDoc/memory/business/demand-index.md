@@ -9,6 +9,8 @@
 
 ## Done
 
+- [Day 6 企业工作台与隔离回归](done/dealflow-day6.md)
+
 - [Day 5 Casbin 域与平台边界](done/dealflow-day5.md)
 
 - [Day 4 可信 TenantContext](done/dealflow-day4.md)

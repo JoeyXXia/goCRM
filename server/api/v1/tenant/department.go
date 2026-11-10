@@ -34,11 +34,19 @@ func RequestID(c *gin.Context) {
 	c.Header("X-Request-ID", uuid.NewString())
 }
 
-func (api DepartmentAPI) ResolveTenant(c *gin.Context) {
+func authenticatedUserID(c *gin.Context) uint64 {
 	value, _ := c.Get("claims")
 	claims, ok := value.(*request.CustomClaims)
 	if !ok || claims == nil || claims.BaseClaims.ID == 0 {
 		fail(c, http.StatusUnauthorized, "登录身份无效")
+		return 0
+	}
+	return uint64(claims.BaseClaims.ID)
+}
+
+func (api DepartmentAPI) ResolveTenant(c *gin.Context) {
+	userID := authenticatedUserID(c)
+	if userID == 0 {
 		return
 	}
 	ids := c.Request.Header.Values("X-Tenant-ID")
@@ -52,12 +60,38 @@ func (api DepartmentAPI) ResolveTenant(c *gin.Context) {
 		return
 	}
 	svc := service.New(api.DB())
-	scope, err := svc.ResolveTenant(c.Request.Context(), uint64(claims.BaseClaims.ID), id)
+	scope, err := svc.ResolveTenant(c.Request.Context(), userID, id)
 	if err != nil {
 		failService(c, err)
 		return
 	}
 	c.Set(requestTenantKey, tenantRequest{service: svc, scope: scope})
+}
+
+// Workspaces lists the authenticated account's active tenant memberships.
+// @Tags DealFlow
+// @Summary 查询当前账号可选的企业工作台
+// @Security ApiKeyAuth
+// @Produce json
+// @Success 200 {object} response.Response{data=[]tenant.Workspace}
+// @Failure 400,401,403,500 {object} response.Response
+// @Header all {string} X-Request-ID "服务端请求 ID"
+// @Router /dealflow/workspaces [get]
+func (api DepartmentAPI) Workspaces(c *gin.Context) {
+	userID := authenticatedUserID(c)
+	if userID == 0 {
+		return
+	}
+	if len(c.Request.Header.Values("X-Tenant-ID")) != 0 || c.Request.URL.RawQuery != "" {
+		fail(c, http.StatusBadRequest, "工作台列表不接收租户选择或查询参数")
+		return
+	}
+	items, err := service.New(api.DB()).Workspaces(c.Request.Context(), userID)
+	if err != nil {
+		failService(c, err)
+		return
+	}
+	response.OkWithData(items, c)
 }
 
 // Menu returns the current enterprise menu and its allowed controls.

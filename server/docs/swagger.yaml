@@ -14,6 +14,17 @@ definitions:
       key:
         type: string
     type: object
+  tenant.Workspace:
+    properties:
+      departmentId:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      roleKey:
+        type: string
+    type: object
   tenant.Tenant:
     properties:
       code:
@@ -2029,6 +2040,63 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: 查询当前租户的可见菜单和操作
+      tags:
+      - DealFlow
+  /dealflow/workspaces:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/tenant.Workspace'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 查询当前账号可选的企业工作台
       tags:
       - DealFlow
   /dealflow/platform/tenants/{id}:

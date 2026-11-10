@@ -169,6 +169,10 @@ router.beforeEach(async (to, from) => {
     return true
   }
 
+  if (to.meta.dealflow) {
+    return token ? true : { name: 'Login', query: { redirect: to.fullPath } }
+  }
+
   // 白名单路由处理
   if (WHITE_LIST.includes(to.name)) {
     if (token) {

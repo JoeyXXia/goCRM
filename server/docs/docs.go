@@ -121,6 +121,99 @@ const docTemplate = `{
                 }
             }
         },
+        "/dealflow/workspaces": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DealFlow"
+                ],
+                "summary": "查询当前账号可选的企业工作台",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/tenant.Workspace"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "headers": {
+                            "X-Request-ID": {
+                                "type": "string",
+                                "description": "服务端请求 ID"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        },
+                        "headers": {
+                            "X-Request-ID": {
+                                "type": "string",
+                                "description": "服务端请求 ID"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        },
+                        "headers": {
+                            "X-Request-ID": {
+                                "type": "string",
+                                "description": "服务端请求 ID"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        },
+                        "headers": {
+                            "X-Request-ID": {
+                                "type": "string",
+                                "description": "服务端请求 ID"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        },
+                        "headers": {
+                            "X-Request-ID": {
+                                "type": "string",
+                                "description": "服务端请求 ID"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/dealflow/platform/tenants/{id}": {
             "get": {
                 "security": [
@@ -6996,6 +7089,23 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "tenant.Workspace": {
+            "type": "object",
+            "properties": {
+                "departmentId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "roleKey": {
                     "type": "string"
                 }
             }

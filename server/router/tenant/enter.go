@@ -9,7 +9,9 @@ import (
 func Register(root *gin.RouterGroup, platform api.PlatformAPI) {
 	dealflow := root.Group("/dealflow", api.RequestID, middleware.JWTAuth())
 	departments := api.DepartmentAPI{DB: platform.DB}
-	enterprise := dealflow.Group("", platform.BlockOperator, departments.ResolveTenant)
+	account := dealflow.Group("", platform.BlockOperator)
+	account.GET("/workspaces", departments.Workspaces)
+	enterprise := account.Group("", departments.ResolveTenant)
 	enterprise.GET("/menu", departments.Menu)
 	enterprise.GET("/departments/:id", departments.Department)
 	enterprise.PATCH("/departments/:id", departments.RenameDepartment)
