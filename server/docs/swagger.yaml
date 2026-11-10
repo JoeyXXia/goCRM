@@ -7,6 +7,24 @@ definitions:
     required:
     - name
     type: object
+  tenant.MenuItem:
+    properties:
+      canRename:
+        type: boolean
+      key:
+        type: string
+    type: object
+  tenant.Tenant:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+    type: object
   tenant.Department:
     properties:
       code:
@@ -1950,6 +1968,138 @@ info:
   title: Gin-Vue-Admin Swagger API接口文档
   version: v2.7.9-beta
 paths:
+  /dealflow/menu:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/tenant.MenuItem'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 查询当前租户的可见菜单和操作
+      tags:
+      - DealFlow
+  /dealflow/platform/tenants/{id}:
+    get:
+      parameters:
+      - description: 租户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Tenant'
+              type: object
+        "400":
+          description: Bad Request
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          headers:
+            X-Request-ID:
+              description: 服务端请求 ID
+              type: string
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 平台运营账号查询租户元数据
+      tags:
+      - DealFlow Platform
   /dealflow/departments/{id}:
     get:
       parameters:

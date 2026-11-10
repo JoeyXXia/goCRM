@@ -15,11 +15,14 @@
 - 后端必须提供完整而准确的 Swagger 接口说明
 - 前端接口调用应以实际 Swagger 与后端实现为准
 
-## DealFlow 部门接口
+## DealFlow 企业与平台接口
 
-- `GET /dealflow/departments/:id` 和 `PATCH /dealflow/departments/:id` 沿用 GVA 的 `x-token` 和接口授权。请求头 `X-Tenant-ID` 使用单个正整数 ID。服务端每次核对账号、租户及成员的当前状态。
+- 企业接口沿用 GVA 的 `x-token`。请求头 `X-Tenant-ID` 使用单个正整数 ID。服务端每次核对账号、租户及成员的当前状态，并在选中租户的域内执行 DealFlow 动作策略。
+- `GET /dealflow/menu` 返回可见项 `[{ "key": "departments", "canRename": true }]`，其中 `canRename` 由当前成员角色决定。部门 API 在每次直接请求时执行动作校验。
+- 部门操作使用 `GET /dealflow/departments/:id` 和 `PATCH /dealflow/departments/:id`。
 - 路径 `:id` 表示部门 ID。接口不接收查询参数。PATCH 只接收 JSON 对象 `{"name":"部门名"}`，仅当前租户管理员可修改，名称去除首尾空白后须为 1 至 128 个字符。
-- 保持 `{ code, data, msg }`。非本租户部门与不存在的部门同样返回 404，租户或角色校验失败返回 403。GVA 的接口权限拒绝沿用 HTTP 200 和非零 `code`。响应头 `X-Request-ID` 由服务端生成。
+- `GET /dealflow/platform/tenants/:id` 只允许配置的专用平台账号，返回租户的 `id`、`code`、`name` 和 `status`。该接口拒绝 `X-Tenant-ID` 和查询参数。服务启动时从 `DEALFLOW_PLATFORM_OPERATOR_UUID` 读取现有账号的 UUID。未配置有效 UUID 时平台入口拒绝访问。
+- 保持 `{ code, data, msg }`。非本租户部门与不存在的部门同样返回 404，DealFlow 权限校验失败返回 403。GVA 继续为普通账号执行原有权限链路。专用平台账号访问企业接口或 GVA 私有路由时返回 403。DealFlow 响应头 `X-Request-ID` 由服务端生成。
 
 ## 变更规则
 

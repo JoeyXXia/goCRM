@@ -13,12 +13,16 @@ import (
 	"testing"
 	"time"
 
+	tenantapi "github.com/flipped-aurora/gin-vue-admin/server/api/v1/tenant"
 	"github.com/flipped-aurora/gin-vue-admin/server/config"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/internal/testmysql"
+	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
+	examplemodel "github.com/flipped-aurora/gin-vue-admin/server/model/example"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
 	model "github.com/flipped-aurora/gin-vue-admin/server/model/tenant"
+	examplerouter "github.com/flipped-aurora/gin-vue-admin/server/router/example"
 	router "github.com/flipped-aurora/gin-vue-admin/server/router/tenant"
 	"github.com/flipped-aurora/gin-vue-admin/server/service/tenant"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
@@ -32,13 +36,14 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func TestDay4TenantIsolation(t *testing.T) {
+func TestDay4And5AccessIsolation(t *testing.T) {
 	dsn := os.Getenv("DEALFLOW_TEST_DSN")
 	if dsn == "" {
 		t.Skip("DEALFLOW_TEST_DSN is not set")
 	}
 	cfg, err := testmysql.Config(dsn)
 	requireOK(t, err)
+	cfg.ParseTime = true
 	pool, err := sql.Open("mysql", cfg.FormatDSN())
 	requireOK(t, err)
 	t.Cleanup(func() { pool.Close() })
@@ -49,6 +54,9 @@ func TestDay4TenantIsolation(t *testing.T) {
 	requireOK(t, err)
 	if !db.Migrator().HasTable(&system.SysUser{}) {
 		requireOK(t, db.Migrator().CreateTable(&system.SysUser{}))
+	}
+	if !db.Migrator().HasTable(&examplemodel.ExaCustomer{}) {
+		requireOK(t, db.Migrator().CreateTable(&examplemodel.ExaCustomer{}))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -68,8 +76,8 @@ func TestDay4TenantIsolation(t *testing.T) {
 		t.Fatal("could not initialize GVA Casbin")
 	}
 	enforcer.EnableAutoSave(false)
-	for _, method := range []string{http.MethodGet, http.MethodPatch} {
-		rule := []string{"704", "/dealflow/departments/:id", method}
+	for _, path := range []string{"/customer/customer", "/customer/customerList"} {
+		rule := []string{"704", path, http.MethodGet}
 		added, err := enforcer.AddPolicy(rule)
 		requireOK(t, err)
 		if !added {
@@ -100,9 +108,13 @@ func TestDay4TenantIsolation(t *testing.T) {
 		return user, enterprise, department, token
 	}
 	userA, tenantA, deptA, tokenA := makeFixture()
-	_, tenantB, deptB, tokenB := makeFixture()
+	userB, tenantB, deptB, tokenB := makeFixture()
+	operator, operatorTenant, operatorDept, operatorToken := makeFixture()
 	mux := gin.New()
-	router.Register(mux.Group("/api"), func() *gorm.DB { return tx })
+	platform := tenantapi.PlatformAPI{Operator: operator.UUID, DB: func() *gorm.DB { return tx }}
+	router.Register(mux.Group("/api"), platform)
+	upstream := mux.Group("/api", tenantapi.RequestID, middleware.JWTAuth(), platform.BlockOperator, middleware.CasbinHandler())
+	(&examplerouter.CustomerRouter{}).InitCustomerRouter(upstream)
 
 	url := func(departmentID uint64) string { return fmt.Sprintf("/api/dealflow/departments/%d", departmentID) }
 	call := func(t *testing.T, method, path, token, body string, status int, tenants ...uint64) json.RawMessage {
@@ -183,10 +195,46 @@ func TestDay4TenantIsolation(t *testing.T) {
 		requireOK(t, tx.Create(&model.Membership{
 			TenantID: tenantB.ID, UserID: uint64(userA.ID), DepartmentID: deptB.ID, Status: "active", RoleKey: "sales",
 		}).Error)
+		const menu = "/api/dealflow/menu"
+		if got := string(call(t, "GET", menu, tokenA, "", 200, tenantA.ID)); got != `[{"key":"departments","canRename":true}]` {
+			t.Fatalf("unexpected admin menu: %s", got)
+		}
+		if got := string(call(t, "GET", menu, tokenA, "", 200, tenantB.ID)); got != `[{"key":"departments","canRename":false}]` {
+			t.Fatalf("unexpected sales menu: %s", got)
+		}
 		call(t, "GET", url(deptB.ID), tokenA, "", 200, tenantB.ID)
 		call(t, "PATCH", url(deptB.ID), tokenA, `{"name":"wrong role"}`, 403, tenantB.ID)
+		requireOK(t, tx.Model(&model.Membership{}).Where("tenant_id = ? AND user_id = ?", tenantB.ID, userA.ID).Update("status", "disabled").Error)
+		call(t, "GET", menu, tokenA, "", 403, tenantB.ID)
+		call(t, "GET", url(deptB.ID), tokenA, "", 403, tenantB.ID)
 		requireOK(t, tx.Delete(&userA).Error)
 		call(t, "GET", url(deptA.ID), tokenA, "", 403, tenantA.ID)
+	})
+	t.Run("platform_and_upstream_customer_boundary", func(t *testing.T) {
+		path := fmt.Sprintf("/api/dealflow/platform/tenants/%d", tenantB.ID)
+		var got model.Tenant
+		requireOK(t, json.Unmarshal(call(t, "GET", path, operatorToken, "", 200), &got))
+		if got != tenantB {
+			t.Fatalf("unexpected platform metadata: %+v", got)
+		}
+		call(t, "GET", path, tokenB, "", 403)
+		call(t, "GET", path, operatorToken, "", 400, tenantB.ID)
+		call(t, "GET", url(operatorDept.ID), operatorToken, "", 403, operatorTenant.ID)
+		call(t, "GET", "/api/dealflow/menu", operatorToken, "", 403, operatorTenant.ID)
+
+		customer := examplemodel.ExaCustomer{CustomerName: "GVA fixture", SysUserID: userB.ID, SysUserAuthorityID: 704}
+		requireOK(t, tx.Omit(clause.Associations).Create(&customer).Error)
+		global.GVA_DB = tx.Session(&gorm.Session{NewDB: true})
+		defer func() { global.GVA_DB = db }()
+		customerPath := fmt.Sprintf("/api/customer/customer?ID=%d", customer.ID)
+		if data := call(t, "GET", customerPath, tokenB, "", 200); !strings.Contains(string(data), customer.CustomerName) {
+			t.Fatalf("upstream customer lookup returned %s", data)
+		}
+		call(t, "GET", customerPath, operatorToken, "", 403)
+		call(t, "GET", "/api/customer/customerList?page=1&pageSize=10", operatorToken, "", 403)
+
+		requireOK(t, tx.Model(&operator).Update("enable", 2).Error)
+		call(t, "GET", path, operatorToken, "", 403)
 	})
 }
 

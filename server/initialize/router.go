@@ -4,13 +4,16 @@ import (
 	"net/http"
 	"os"
 
+	tenantapi "github.com/flipped-aurora/gin-vue-admin/server/api/v1/tenant"
 	"github.com/flipped-aurora/gin-vue-admin/server/docs"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/flipped-aurora/gin-vue-admin/server/router"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"gorm.io/gorm"
 )
 
 type justFilesFilesystem struct {
@@ -65,7 +68,9 @@ func Routers() *gin.Engine {
 	PublicGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PrivateGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 
-	PrivateGroup.Use(middleware.JWTAuth()).Use(middleware.CasbinHandler())
+	operator, _ := uuid.Parse(os.Getenv("DEALFLOW_PLATFORM_OPERATOR_UUID"))
+	platform := tenantapi.PlatformAPI{Operator: operator, DB: func() *gorm.DB { return global.GVA_DB }}
+	PrivateGroup.Use(middleware.JWTAuth(), platform.BlockOperator, middleware.CasbinHandler())
 
 	{
 		// 健康监测
@@ -105,7 +110,7 @@ func Routers() *gin.Engine {
 	InstallPlugin(PrivateGroup, PublicGroup, Router)
 
 	// 注册业务路由
-	initBizRouter(PrivateGroup, PublicGroup)
+	initBizRouter(platform, PrivateGroup, PublicGroup)
 
 	global.GVA_ROUTERS = Router.Routes()
 

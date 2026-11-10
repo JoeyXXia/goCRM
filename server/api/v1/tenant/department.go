@@ -60,6 +60,29 @@ func (api DepartmentAPI) ResolveTenant(c *gin.Context) {
 	c.Set(requestTenantKey, tenantRequest{service: svc, scope: scope})
 }
 
+// Menu returns the current enterprise menu and its allowed controls.
+// @Tags DealFlow
+// @Summary 查询当前租户的可见菜单和操作
+// @Security ApiKeyAuth
+// @Produce json
+// @Param X-Tenant-ID header string true "当前租户 ID"
+// @Success 200 {object} response.Response{data=[]tenant.MenuItem}
+// @Failure 400,401,403,500 {object} response.Response
+// @Header all {string} X-Request-ID "服务端请求 ID"
+// @Router /dealflow/menu [get]
+func (api DepartmentAPI) Menu(c *gin.Context) {
+	req, ok := resolvedRequest(c)
+	if !ok {
+		return
+	}
+	items, err := req.service.Menu(req.scope)
+	if err != nil {
+		failService(c, err)
+		return
+	}
+	response.OkWithData(items, c)
+}
+
 // Department returns a department in the selected tenant.
 // @Tags DealFlow
 // @Summary 查询当前租户内的部门
@@ -117,10 +140,8 @@ func (api DepartmentAPI) RenameDepartment(c *gin.Context) {
 }
 
 func departmentRequest(c *gin.Context) (tenantRequest, uint64, bool) {
-	state, _ := c.Get(requestTenantKey)
-	req, ok := state.(tenantRequest)
+	req, ok := resolvedRequest(c)
 	if !ok {
-		failService(c, service.ErrTenantDenied)
 		return req, 0, false
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -129,6 +150,15 @@ func departmentRequest(c *gin.Context) (tenantRequest, uint64, bool) {
 		return req, 0, false
 	}
 	return req, id, true
+}
+
+func resolvedRequest(c *gin.Context) (tenantRequest, bool) {
+	state, _ := c.Get(requestTenantKey)
+	req, ok := state.(tenantRequest)
+	if !ok {
+		failService(c, service.ErrTenantDenied)
+	}
+	return req, ok
 }
 
 func failService(c *gin.Context, err error) {

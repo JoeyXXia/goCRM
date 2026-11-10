@@ -27,7 +27,7 @@ jobs:
         working-directory: server
         run: |
           go run -mod=readonly ./cmd/dealflow-migrate
-          go test -mod=readonly ./cmd/dealflow-migrate ./router/system -count=2
+          go test -mod=readonly ./cmd/dealflow-migrate ./cmd/dealflow-tenant ./router/system ./service/tenant -count=2
       - name: Build server
         working-directory: server
         run: go build -mod=readonly . ./cmd/dealflow-migrate ./cmd/dealflow-tenant

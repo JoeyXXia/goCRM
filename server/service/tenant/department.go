@@ -16,12 +16,15 @@ var (
 )
 
 func (s *Service) Department(ctx context.Context, scope TenantContext, id uint64) (model.Department, error) {
+	if err := scope.require("departments", "read"); err != nil {
+		return model.Department{}, err
+	}
 	return departmentRepository{s.db}.find(ctx, scope, id)
 }
 
 func (s *Service) RenameDepartment(ctx context.Context, scope TenantContext, id uint64, name string) error {
-	if scope.membership.RoleKey != administrator {
-		return ErrTenantDenied
+	if err := scope.require("departments", "rename"); err != nil {
+		return err
 	}
 	name = strings.TrimSpace(name)
 	if name == "" || utf8.RuneCountInString(name) > 128 {
