@@ -22,23 +22,25 @@ jobs:
           echo "flipped-aurora"
   frontend:
     if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'release'
-    name: Frontend node ${{ matrix.node-version }}
+    name: Frontend
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20.19.0]
     steps:
       - name: Check out branch
         uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use pinned Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Pin npm
+        run: npm install --global "npm@$(cat .npm-version)"
 
       - name: Build test
         run: |
-          npm install
+          npm ci --no-audit --no-fund
           npm run build
         working-directory: ./web
 
