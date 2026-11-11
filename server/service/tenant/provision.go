@@ -22,6 +22,8 @@ const (
 
 var tenantCode = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
+var ErrAccountUnavailable = errors.New("GVA account unavailable")
+
 type Service struct {
 	db *gorm.DB
 }
@@ -66,7 +68,7 @@ func checkUser(tx *gorm.DB, id uint64) error {
 	err := tx.Select("id").Clauses(clause.Locking{Strength: "SHARE"}).
 		Where("id = ? AND enable = ?", id, 1).Take(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return fmt.Errorf("GVA user %d is missing, disabled or deleted", id)
+		return fmt.Errorf("GVA user %d is missing, disabled or deleted: %w", id, ErrAccountUnavailable)
 	}
 	if err != nil {
 		return fmt.Errorf("verify GVA user %d: %w", id, err)

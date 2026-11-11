@@ -26,6 +26,13 @@
 - `GET /dealflow/platform/tenants/:id` 只允许配置的专用平台账号，返回租户的 `id`、`code`、`name` 和 `status`。该接口拒绝 `X-Tenant-ID` 和查询参数。服务启动时从 `DEALFLOW_PLATFORM_OPERATOR_UUID` 读取现有账号的 UUID。未配置有效 UUID 时平台入口拒绝访问。
 - 保持 `{ code, data, msg }`。非本租户部门与不存在的部门同样返回 404，DealFlow 权限校验失败返回 403。GVA 继续为普通账号执行原有权限链路。专用平台账号访问企业接口或 GVA 私有路由时返回 403。DealFlow 响应头 `X-Request-ID` 由服务端生成。
 
+## Day 8 组织管理接口
+
+- 部门列表使用 `GET /dealflow/departments`，父子关系通过 `parentId` 表达。创建使用 POST，完整更新使用 `PUT /dealflow/departments/:id`，删除使用 DELETE。请求字段为 `code`、`name`、`parentId`，父部门 ID 使用十进制字符串，省略或 null 表示根部门。祖先查询使用 `GET /dealflow/departments/:id/ancestors`，按直属父部门到根部门返回。
+- 企业管理员通过 `GET/POST /dealflow/members` 和 `PUT/DELETE /dealflow/members/:id` 管理成员。成员创建和更新使用完整字段 `userId`、`departmentId`、`roleKey`、`status`，两个输入 ID 使用字符串。更新时账号 ID 保持一致。角色可取 `tenant_admin`、`sales`、`manager`、`finance`，状态可取 `active`、`disabled`。
+- 成员记录新增 `permissionVersion`，初值为 1。成员部门、角色或状态变化时递增，幂等更新保持版本。每次企业请求重新检查当前成员状态，旧 JWT 在成员禁用或移除后访问该企业返回 403。
+- 组织接口继承企业请求头和统一响应约定。部门与成员响应 ID 延续后端模型的整数格式，新字段 `parentId` 使用字符串或省略。树环、删除有依赖部门、重复成员和移除最后一名活跃管理员返回 409。跨企业资源与不存在的资源统一返回 404。
+
 ## 变更规则
 
 - 涉及破坏性接口调整时，要先写清楚变更范围

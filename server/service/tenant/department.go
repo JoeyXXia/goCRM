@@ -52,7 +52,7 @@ func (r departmentRepository) find(ctx context.Context, scope TenantContext, id 
 	if err != nil {
 		return row, err
 	}
-	err = query.Select("id", "tenant_id", "code", "name").Take(&row).Error
+	err = query.Select("id", "tenant_id", "code", "name", "parent_id").Take(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return row, ErrDepartmentNotFound
 	}

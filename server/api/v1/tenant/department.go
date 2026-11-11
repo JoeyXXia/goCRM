@@ -11,6 +11,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
 	service "github.com/flipped-aurora/gin-vue-admin/server/service/tenant"
 	"github.com/gin-gonic/gin"
+	mysql "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -196,7 +197,18 @@ func resolvedRequest(c *gin.Context) (tenantRequest, bool) {
 }
 
 func failService(c *gin.Context, err error) {
+	var dbError *mysql.MySQLError
+	if errors.As(err, &dbError) && (dbError.Number == 1062 || dbError.Number == 1451 || dbError.Number == 1452 || dbError.Number == 1216 || dbError.Number == 1217) {
+		fail(c, http.StatusConflict, "组织关联冲突")
+		return
+	}
 	switch {
+	case errors.Is(err, service.ErrOrganizationInput), errors.Is(err, service.ErrAccountUnavailable):
+		fail(c, http.StatusBadRequest, "组织参数无效")
+	case errors.Is(err, service.ErrOrganizationConflict):
+		fail(c, http.StatusConflict, "部门存在依赖、形成循环或最后管理员不可移除")
+	case errors.Is(err, service.ErrMemberNotFound):
+		fail(c, http.StatusNotFound, "成员不存在")
 	case errors.Is(err, service.ErrTenantDenied):
 		fail(c, http.StatusForbidden, "租户权限不足")
 	case errors.Is(err, service.ErrDepartmentNotFound):

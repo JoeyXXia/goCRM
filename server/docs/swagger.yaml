@@ -1,4 +1,62 @@
 definitions:
+  tenant.Membership:
+    properties:
+      departmentId:
+        type: integer
+      id:
+        type: integer
+      permissionVersion:
+        type: integer
+      roleKey:
+        type: string
+      status:
+        type: string
+      tenantId:
+        type: integer
+      userId:
+        type: integer
+    type: object
+  tenant.MemberInput:
+    properties:
+      departmentId:
+        example: ""
+        type: string
+      roleKey:
+        enum:
+        - tenant_admin
+        - sales
+        - manager
+        - finance
+        type: string
+      status:
+        enum:
+        - active
+        - disabled
+        type: string
+      userId:
+        example: ""
+        type: string
+    required:
+    - departmentId
+    - roleKey
+    - status
+    - userId
+    type: object
+  tenant.DepartmentInput:
+    properties:
+      code:
+        maxLength: 64
+        type: string
+      name:
+        maxLength: 128
+        type: string
+      parentId:
+        example: ""
+        type: string
+    required:
+    - code
+    - name
+    type: object
   tenant.RenameDepartmentInput:
     properties:
       name:
@@ -43,6 +101,9 @@ definitions:
       id:
         type: integer
       name:
+        type: string
+      parentId:
+        example: ""
         type: string
       tenantId:
         type: integer
@@ -1979,6 +2040,370 @@ info:
   title: Gin-Vue-Admin Swagger API接口文档
   version: v2.7.9-beta
 paths:
+  /dealflow/members/{id}:
+    delete:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 成员 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 移除成员并保护最后一名活跃管理员
+      tags:
+      - DealFlow
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 成员 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 完整成员字段，userId 保持原账号
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.MemberInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Membership'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 更新成员归属角色和状态（active 或 disabled）
+      tags:
+      - DealFlow
+  /dealflow/members:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/tenant.Membership'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 管理员查询当前企业成员
+      tags:
+      - DealFlow
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 账号及部门 ID 使用字符串
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.MemberInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Membership'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 绑定当前企业成员
+      tags:
+      - DealFlow
+  /dealflow/departments/{id}/ancestors:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 部门 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/tenant.Department'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 查询部门祖先（直属父部门至根部门）
+      tags:
+      - DealFlow
+  /dealflow/departments:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/tenant.Department'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 查询当前企业部门列表
+      tags:
+      - DealFlow
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 部门字段，parentId 为字符串或 null
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.DepartmentInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Department'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 创建当前企业部门
+      tags:
+      - DealFlow
   /dealflow/menu:
     get:
       parameters:
@@ -2169,6 +2594,54 @@ paths:
       tags:
       - DealFlow Platform
   /dealflow/departments/{id}:
+    delete:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 部门 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 删除无成员且无子部门的部门
+      tags:
+      - DealFlow
     get:
       parameters:
       - description: 当前租户 ID
@@ -2316,6 +2789,67 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: 当前租户管理员修改部门名称
+      tags:
+      - DealFlow
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 部门 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 部门字段，省略 parentId 或 null 表示根部门
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.DepartmentInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Department'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 更新当前企业部门及父部门
       tags:
       - DealFlow
   /api/createApi:
