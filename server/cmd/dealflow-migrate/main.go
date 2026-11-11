@@ -76,7 +76,10 @@ func migrate(ctx context.Context, db *sql.DB, includeTenants bool) error {
 		return errors.New("migration 001 checksum mismatch")
 	}
 	if includeTenants {
-		return migrateTenants(ctx, conn)
+		if err := migrateTenants(ctx, conn); err != nil {
+			return err
+		}
+		return migrateOrganization(ctx, conn)
 	}
 	return nil
 }
@@ -119,7 +122,7 @@ func verifyBaseline(ctx context.Context, conn *sql.Conn) error {
 }
 
 func main() {
-	tenants := flag.Bool("tenants", false, "also apply 002 after the GVA user schema exists")
+	tenants := flag.Bool("tenants", false, "also apply tenant migrations after the GVA user schema exists")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		log.Fatal("unexpected migration arguments")
@@ -142,5 +145,6 @@ func main() {
 	fmt.Println("Migration 001 verified")
 	if *tenants {
 		fmt.Println("Migration 002 verified")
+		fmt.Println("Migration 003 verified")
 	}
 }

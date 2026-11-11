@@ -72,6 +72,7 @@ func verifyTenantSchema(ctx context.Context, conn *sql.Conn) error {
         FROM information_schema.COLUMNS c
         JOIN information_schema.TABLES t USING (TABLE_SCHEMA, TABLE_NAME)
         WHERE c.TABLE_SCHEMA = DATABASE() AND t.ENGINE = 'InnoDB'
+          AND c.COLUMN_NAME NOT IN ('parent_id', 'permission_version')
           AND c.TABLE_NAME IN ('tenants','departments','tenant_memberships')
         GROUP BY c.TABLE_NAME`
 	id := "id:bigint unsigned:NO:auto_increment,"
@@ -91,6 +92,7 @@ func verifyTenantSchema(ctx context.Context, conn *sql.Conn) error {
                 ORDER BY k.ORDINAL_POSITION SEPARATOR ',')
         FROM information_schema.KEY_COLUMN_USAGE k
         WHERE k.TABLE_SCHEMA = DATABASE()
+          AND k.CONSTRAINT_NAME <> 'fk_departments_parent'
           AND k.TABLE_NAME IN ('tenants','departments','tenant_memberships')
         GROUP BY k.TABLE_NAME, k.CONSTRAINT_NAME`
 	db := testmysql.Database + "."
