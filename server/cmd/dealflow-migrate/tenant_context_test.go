@@ -233,6 +233,9 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		}
 		call(t, "PUT", memberURL, tokenA, input(child.ID, "tenant_admin", "active"), 200, tenantA.ID)
 		call(t, "GET", base+"/members", tokenB, "", 200, tenantA.ID)
+		requireOK(t, tx.Model(&system.SysUser{}).Where("id = ?", userB.ID).Update("enable", 2).Error)
+		call(t, "DELETE", adminURL, tokenA, "", 409, tenantA.ID)
+		requireOK(t, tx.Model(&system.SysUser{}).Where("id = ?", userB.ID).Update("enable", 1).Error)
 		data = call(t, "PUT", memberURL, tokenA, input(child.ID, "sales", "disabled"), 200, tenantA.ID)
 		requireOK(t, json.Unmarshal(data, &member))
 		if member.PermissionVersion != 3 {

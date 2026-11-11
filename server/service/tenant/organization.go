@@ -195,11 +195,15 @@ func lastAdministrator(tx *gorm.DB, tenantID uint64, old model.Membership, remai
 		return nil
 	}
 	var count int64
-	err := tx.Model(&model.Membership{}).Where("tenant_id = ? AND role_key = ? AND status = ?", tenantID, administrator, active).Count(&count).Error
+	err := tx.Model(&model.Membership{}).
+		Joins("JOIN sys_users ON sys_users.id = tenant_memberships.user_id").
+		Where("tenant_memberships.tenant_id = ? AND tenant_memberships.role_key = ? AND tenant_memberships.status = ?", tenantID, administrator, active).
+		Where("tenant_memberships.id <> ? AND sys_users.enable = 1 AND sys_users.deleted_at IS NULL", old.ID).
+		Count(&count).Error
 	if err != nil {
 		return err
 	}
-	if count <= 1 {
+	if count == 0 {
 		return ErrOrganizationConflict
 	}
 	return nil
