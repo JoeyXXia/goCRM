@@ -9,6 +9,8 @@
 
 ## Done
 
+- [Day 8 部门树与成员管理](done/dealflow-day8.md)
+
 - [Day 7 第一周复盘](done/dealflow-day7.md)
 
 - [Day 6 企业工作台与隔离回归](done/dealflow-day6.md)

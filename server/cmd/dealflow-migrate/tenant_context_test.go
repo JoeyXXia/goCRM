@@ -183,6 +183,77 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		}
 	})
 	const workspaces = "/api/dealflow/workspaces"
+	t.Run("day8_tree_and_member_lifecycle", func(t *testing.T) {
+		base := "/api/dealflow"
+		var child, leaf model.Department
+		data := call(t, "POST", base+"/departments", tokenA,
+			fmt.Sprintf(`{"code":"child","name":"同名部门","parentId":"%d"}`, deptA.ID), 200, tenantA.ID)
+		requireOK(t, json.Unmarshal(data, &child))
+		data = call(t, "POST", base+"/departments", tokenA,
+			fmt.Sprintf(`{"code":"leaf","name":"同名部门","parentId":"%d"}`, child.ID), 200, tenantA.ID)
+		requireOK(t, json.Unmarshal(data, &leaf))
+		call(t, "POST", base+"/departments", tokenB, `{"code":"child","name":"同名部门"}`, 200, tenantB.ID)
+		call(t, "POST", base+"/departments", tokenA, `{"code":"child","name":"duplicate"}`, 409, tenantA.ID)
+		call(t, "POST", base+"/departments", tokenA, fmt.Sprintf(`{"code":"foreign","name":"bad","parentId":"%d"}`, deptB.ID), 404, tenantA.ID)
+		call(t, "PUT", url(deptA.ID), tokenA, fmt.Sprintf(`{"code":"general","name":"bad","parentId":"%d"}`, leaf.ID), 409, tenantA.ID)
+		call(t, "PUT", url(child.ID), tokenA, fmt.Sprintf(`{"code":"child","name":"bad","parentId":"%d"}`, child.ID), 409, tenantA.ID)
+		var parents []model.Department
+		requireOK(t, json.Unmarshal(call(t, "GET", url(leaf.ID)+"/ancestors", tokenA, "", 200, tenantA.ID), &parents))
+		if len(parents) != 2 || parents[0].ID != child.ID || parents[1].ID != deptA.ID {
+			t.Fatal("wrong ancestor chain")
+		}
+		call(t, "GET", base+"/departments", tokenA, "", 200, tenantA.ID)
+		call(t, "GET", url(leaf.ID)+"/ancestors", tokenB, "", 404, tenantB.ID)
+		call(t, "DELETE", url(child.ID), tokenA, "", 409, tenantA.ID)
+		var member model.Membership
+		input := func(dept uint64, role, status string) string {
+			return fmt.Sprintf(`{"userId":"%d","departmentId":"%d","roleKey":"%s","status":"%s"}`, userB.ID, dept, role, status)
+		}
+		data = call(t, "POST", base+"/members", tokenA, input(leaf.ID, "sales", "active"), 200, tenantA.ID)
+		requireOK(t, json.Unmarshal(data, &member))
+		if member.PermissionVersion != 1 {
+			t.Fatal("new member version must be one")
+		}
+		memberURL := fmt.Sprintf("%s/members/%d", base, member.ID)
+		call(t, "POST", base+"/members", tokenA, input(leaf.ID, "sales", "active"), 409, tenantA.ID)
+		call(t, "PUT", memberURL, tokenB, input(leaf.ID, "sales", "active"), 403, tenantA.ID)
+		call(t, "PUT", memberURL, tokenA, input(deptB.ID, "sales", "active"), 404, tenantA.ID)
+		call(t, "DELETE", url(leaf.ID), tokenA, "", 409, tenantA.ID)
+		var admin model.Membership
+		requireOK(t, tx.Where("tenant_id = ? AND user_id = ?", tenantA.ID, userA.ID).Take(&admin).Error)
+		adminURL := fmt.Sprintf("%s/members/%d", base, admin.ID)
+		call(t, "DELETE", adminURL, tokenA, "", 409, tenantA.ID)
+		for _, role := range []string{"sales", "tenant_admin"} {
+			status := "active"
+			if role == "tenant_admin" {
+				status = "disabled"
+			}
+			body := fmt.Sprintf(`{"userId":"%d","departmentId":"%d","roleKey":"%s","status":"%s"}`, userA.ID, deptA.ID, role, status)
+			call(t, "PUT", adminURL, tokenA, body, 409, tenantA.ID)
+		}
+		call(t, "PUT", memberURL, tokenA, input(child.ID, "tenant_admin", "active"), 200, tenantA.ID)
+		call(t, "GET", base+"/members", tokenB, "", 200, tenantA.ID)
+		data = call(t, "PUT", memberURL, tokenA, input(child.ID, "sales", "disabled"), 200, tenantA.ID)
+		requireOK(t, json.Unmarshal(data, &member))
+		if member.PermissionVersion != 3 {
+			t.Fatalf("expected version three, got %d", member.PermissionVersion)
+		}
+		requireOK(t, tx.Model(&system.SysUser{}).Where("id = ?", userB.ID).Update("enable", 2).Error)
+		data = call(t, "PUT", memberURL, tokenA, input(child.ID, "sales", "disabled"), 200, tenantA.ID)
+		requireOK(t, json.Unmarshal(data, &member))
+		if member.PermissionVersion != 3 {
+			t.Fatal("idempotent update incremented permission version")
+		}
+		requireOK(t, tx.Model(&system.SysUser{}).Where("id = ?", userB.ID).Update("enable", 1).Error)
+		call(t, "GET", url(child.ID), tokenB, "", 403, tenantA.ID)
+		call(t, "GET", base+"/members", tokenB, "", 403, tenantA.ID)
+		call(t, "PUT", memberURL, tokenA, input(child.ID, "sales", "active"), 200, tenantA.ID)
+		call(t, "GET", url(child.ID), tokenB, "", 200, tenantA.ID)
+		call(t, "DELETE", memberURL, tokenA, "", 200, tenantA.ID)
+		call(t, "GET", url(child.ID), tokenB, "", 403, tenantA.ID)
+		call(t, "DELETE", url(leaf.ID), tokenA, "", 200, tenantA.ID)
+		call(t, "DELETE", url(child.ID), tokenA, "", 200, tenantA.ID)
+	})
 	t.Run("recheck_membership_tenant_and_user_status", func(t *testing.T) {
 		membership := tx.Model(&model.Membership{}).Where("tenant_id = ? AND user_id = ?", tenantA.ID, userA.ID)
 		checkWorkspaces := func(want ...tenant.Workspace) {
