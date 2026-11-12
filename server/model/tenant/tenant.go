@@ -16,13 +16,14 @@ type Department struct {
 }
 
 type Membership struct {
-	ID                uint64 `json:"id"`
-	TenantID          uint64 `json:"tenantId"`
-	UserID            uint64 `json:"userId"`
-	DepartmentID      uint64 `json:"departmentId"`
-	RoleKey           string `json:"roleKey"`
-	Status            string `json:"status"`
-	PermissionVersion uint64 `json:"permissionVersion" gorm:"default:1"`
+	ID                uint64   `json:"id"`
+	TenantID          uint64   `json:"tenantId"`
+	UserID            uint64   `json:"userId"`
+	DepartmentID      uint64   `json:"departmentId"`
+	RoleKey           string   `json:"roleKey"`
+	Status            string   `json:"status"`
+	PermissionVersion uint64   `json:"permissionVersion" gorm:"default:1"`
+	DataRoles         []string `json:"dataRoles,omitempty" gorm:"serializer:json"`
 }
 
 func (Membership) TableName() string { return "tenant_memberships" }

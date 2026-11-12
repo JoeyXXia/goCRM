@@ -2,7 +2,10 @@ package tenant
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"slices"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -24,10 +27,11 @@ type DepartmentInput struct {
 }
 
 type MemberInput struct {
-	UserID       uint64 `json:"userId,string" swaggertype:"string" binding:"required"`
-	DepartmentID uint64 `json:"departmentId,string" swaggertype:"string" binding:"required"`
-	RoleKey      string `json:"roleKey" binding:"required" enums:"tenant_admin,sales,manager,finance"`
-	Status       string `json:"status" binding:"required" enums:"active,disabled"`
+	UserID       uint64   `json:"userId,string" swaggertype:"string" binding:"required"`
+	DepartmentID uint64   `json:"departmentId,string" swaggertype:"string" binding:"required"`
+	RoleKey      string   `json:"roleKey" binding:"required" enums:"tenant_admin,sales,manager,finance"`
+	Status       string   `json:"status" binding:"required" enums:"active,disabled"`
+	DataRoles    []string `json:"dataRoles,omitempty"`
 }
 
 // organizationWrite serializes tree moves and administrator changes per tenant.
@@ -179,14 +183,16 @@ func (s *Service) DeleteDepartment(ctx context.Context, scope TenantContext, id 
 }
 
 func (s *Service) Members(ctx context.Context, scope TenantContext) ([]model.Membership, error) {
-	if err := scope.require("organization", "manage"); err != nil {
+	visibility, err := s.ResolveVisibility(ctx, scope, "members", "read")
+	if err != nil {
 		return nil, err
 	}
-	if s.db == nil {
-		return nil, ErrUnavailable
+	query, err := visibility.filter(s.db.WithContext(ctx).Model(&model.Membership{}), "user_id")
+	if err != nil {
+		return nil, err
 	}
 	rows := make([]model.Membership, 0)
-	err := s.db.WithContext(ctx).Where("tenant_id = ?", scope.membership.TenantID).Order("id").Find(&rows).Error
+	err = query.Order("id").Find(&rows).Error
 	return rows, err
 }
 
@@ -218,8 +224,20 @@ func (s *Service) SaveMember(ctx context.Context, scope TenantContext, id uint64
 	default:
 		return model.Membership{}, ErrOrganizationInput
 	}
+	roles := append([]string(nil), input.DataRoles...)
+	sort.Strings(roles)
+	roles = slices.Compact(roles)
+	for _, role := range roles {
+		if role != "sales" && role != "manager" && role != "finance" {
+			return model.Membership{}, ErrOrganizationInput
+		}
+	}
+	rolesJSON, err := json.Marshal(roles)
+	if err != nil {
+		return model.Membership{}, err
+	}
 	var saved model.Membership
-	err := s.organizationWrite(ctx, scope, func(tx *gorm.DB, tenantID uint64) error {
+	err = s.organizationWrite(ctx, scope, func(tx *gorm.DB, tenantID uint64) error {
 		if _, err := departmentIn(tx, tenantID, input.DepartmentID); err != nil {
 			return err
 		}
@@ -230,7 +248,7 @@ func (s *Service) SaveMember(ctx context.Context, scope TenantContext, id uint64
 		}
 		if id == 0 {
 			saved = model.Membership{TenantID: tenantID, UserID: input.UserID, DepartmentID: input.DepartmentID,
-				RoleKey: input.RoleKey, Status: input.Status, PermissionVersion: 1}
+				RoleKey: input.RoleKey, Status: input.Status, PermissionVersion: 1, DataRoles: roles}
 			return tx.Create(&saved).Error
 		}
 		err := tx.Where("tenant_id = ? AND id = ?", tenantID, id).Take(&saved).Error
@@ -246,7 +264,7 @@ func (s *Service) SaveMember(ctx context.Context, scope TenantContext, id uint64
 		if err := lastAdministrator(tx, tenantID, saved, input.RoleKey == administrator && input.Status == active); err != nil {
 			return err
 		}
-		if saved.DepartmentID == input.DepartmentID && saved.RoleKey == input.RoleKey && saved.Status == input.Status {
+		if saved.DepartmentID == input.DepartmentID && saved.RoleKey == input.RoleKey && saved.Status == input.Status && slices.Equal(saved.DataRoles, roles) {
 			return nil
 		}
 		if saved.PermissionVersion == ^uint64(0) {
@@ -255,6 +273,7 @@ func (s *Service) SaveMember(ctx context.Context, scope TenantContext, id uint64
 		err = tx.Model(&model.Membership{}).Where("tenant_id = ? AND id = ?", tenantID, id).Updates(map[string]any{
 			"department_id": input.DepartmentID, "role_key": input.RoleKey, "status": input.Status,
 			"permission_version": gorm.Expr("permission_version + 1"),
+			"data_roles":         string(rolesJSON),
 		}).Error
 		if err != nil {
 			return err

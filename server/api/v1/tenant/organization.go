@@ -137,7 +137,8 @@ func (api DepartmentAPI) DeleteDepartment(c *gin.Context) {
 
 // Members lists tenant membership records.
 // @Tags DealFlow
-// @Summary 管理员查询当前企业成员
+// @Summary 按当前角色的数据范围查询企业成员
+// @Description 服务端合并角色允许范围并限制当前租户，拒绝查询参数。
 // @Security ApiKeyAuth
 // @Produce json
 // @Param X-Tenant-ID header string true "当前租户 ID"
@@ -164,7 +165,7 @@ func (api DepartmentAPI) Members(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param X-Tenant-ID header string true "当前租户 ID"
-// @Param input body tenant.MemberInput true "账号及部门 ID 使用字符串"
+// @Param input body tenant.MemberInput true "账号及部门 ID 使用字符串，dataRoles 可附加 sales、manager、finance"
 // @Success 200 {object} response.Response{data=tenant.Membership}
 // @Failure 400,401,403,404,409,500 {object} response.Response
 // @Router /dealflow/members [post]
@@ -178,7 +179,7 @@ func (api DepartmentAPI) CreateMember(c *gin.Context) { api.saveMember(c, false)
 // @Produce json
 // @Param X-Tenant-ID header string true "当前租户 ID"
 // @Param id path string true "成员 ID"
-// @Param input body tenant.MemberInput true "完整成员字段，userId 保持原账号"
+// @Param input body tenant.MemberInput true "完整成员字段，userId 保持原账号，省略 dataRoles 清空附加数据角色"
 // @Success 200 {object} response.Response{data=tenant.Membership}
 // @Failure 400,401,403,404,409,500 {object} response.Response
 // @Router /dealflow/members/{id} [put]

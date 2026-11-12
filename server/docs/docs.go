@@ -52,7 +52,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "完整成员字段，userId 保持原账号",
+                        "description": "完整成员字段，userId 保持原账号，省略 dataRoles 清空附加数据角色",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -200,13 +200,14 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
+                "description": "服务端合并角色允许范围并限制当前租户，拒绝查询参数。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "DealFlow"
                 ],
-                "summary": "管理员查询当前企业成员",
+                "summary": "按当前角色的数据范围查询企业成员",
                 "parameters": [
                     {
                         "type": "string",
@@ -289,7 +290,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "账号及部门 ID 使用字符串",
+                        "description": "账号及部门 ID 使用字符串，dataRoles 可附加 sales、manager、finance",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -7836,6 +7837,12 @@ const docTemplate = `{
         "tenant.Membership": {
             "type": "object",
             "properties": {
+                "dataRoles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "departmentId": {
                     "type": "integer"
                 },
@@ -7868,6 +7875,12 @@ const docTemplate = `{
                 "userId"
             ],
             "properties": {
+                "dataRoles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "departmentId": {
                     "type": "string",
                     "example": ""
