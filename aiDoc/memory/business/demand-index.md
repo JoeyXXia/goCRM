@@ -9,6 +9,8 @@
 
 ## Done
 
+- [Day 9 数据范围与授权测试](done/dealflow-day9.md)
+
 - [Day 8 部门树与成员管理](done/dealflow-day8.md)
 
 - [Day 7 第一周复盘](done/dealflow-day7.md)

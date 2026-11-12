@@ -183,6 +183,133 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		}
 	})
 	const workspaces = "/api/dealflow/workspaces"
+	t.Run("day9_visibility_matrix_and_permission_refresh", func(t *testing.T) {
+		adminScope, err := svc.ResolveTenant(ctx, uint64(userA.ID), tenantA.ID)
+		requireOK(t, err)
+		team, err := svc.SaveDepartment(ctx, adminScope, 0, tenant.DepartmentInput{Code: "d9-team", Name: "Team", ParentID: &deptA.ID})
+		requireOK(t, err)
+		child, err := svc.SaveDepartment(ctx, adminScope, 0, tenant.DepartmentInput{Code: "d9-child", Name: "Child", ParentID: &team.ID})
+		requireOK(t, err)
+		sibling, err := svc.SaveDepartment(ctx, adminScope, 0, tenant.DepartmentInput{Code: "d9-sibling", Name: "Sibling", ParentID: &deptA.ID})
+		requireOK(t, err)
+		actor, err := svc.SaveMember(ctx, adminScope, 0, tenant.MemberInput{UserID: uint64(userB.ID), DepartmentID: team.ID, RoleKey: "sales", Status: "active"})
+		requireOK(t, err)
+		makeMember := func(department uint64) model.Membership {
+			user := system.SysUser{Username: "d9-" + uuid.NewString(), UUID: uuid.New(), Password: "!", Enable: 1}
+			requireOK(t, tx.Omit(clause.Associations).Create(&user).Error)
+			row, err := svc.SaveMember(ctx, adminScope, 0, tenant.MemberInput{UserID: uint64(user.ID), DepartmentID: department, RoleKey: "sales", Status: "active"})
+			requireOK(t, err)
+			return row
+		}
+		peer, lower, other := makeMember(team.ID), makeMember(child.ID), makeMember(sibling.ID)
+		var admin model.Membership
+		requireOK(t, tx.Where("tenant_id = ? AND user_id = ?", tenantA.ID, userA.ID).Take(&admin).Error)
+		staleScope, err := svc.ResolveTenant(ctx, uint64(userB.ID), tenantA.ID)
+		requireOK(t, err)
+		// Temporary records exercise the reusable owner/department filter before Day 10.
+		requireOK(t, tx.Exec("CREATE TEMPORARY TABLE day9_records (id BIGINT UNSIGNED PRIMARY KEY, tenant_id BIGINT UNSIGNED NOT NULL, owner_id BIGINT UNSIGNED NOT NULL, department_id BIGINT UNSIGNED NOT NULL) ENGINE=InnoDB").Error)
+		defer func() { requireOK(t, tx.Exec("DROP TEMPORARY TABLE day9_records").Error) }()
+		for _, row := range []struct{ id, tenantID, owner, department uint64 }{
+			{1, tenantA.ID, uint64(userB.ID), team.ID},
+			{2, tenantA.ID, peer.UserID, team.ID},
+			{3, tenantA.ID, lower.UserID, child.ID},
+			{4, tenantA.ID, other.UserID, sibling.ID},
+			{5, tenantA.ID, uint64(userB.ID), sibling.ID},
+			{6, tenantB.ID, uint64(userB.ID), deptB.ID},
+			{7, tenantB.ID, peer.UserID, team.ID},
+		} {
+			requireOK(t, tx.Exec("INSERT INTO day9_records VALUES (?,?,?,?)", row.id, row.tenantID, row.owner, row.department).Error)
+		}
+		if _, err := (tenant.Visibility{}).ForRecords(tx.Table("day9_records")); !errors.Is(err, tenant.ErrTenantDenied) {
+			t.Fatal("zero visibility must deny")
+		}
+		if _, err := svc.ResolveVisibility(ctx, staleScope, "customers", "read"); !errors.Is(err, tenant.ErrTenantDenied) {
+			t.Fatal("unmapped resource must deny")
+		}
+		if _, err := svc.ResolveVisibility(ctx, staleScope, "members", "write"); !errors.Is(err, tenant.ErrTenantDenied) {
+			t.Fatal("unmapped action must deny")
+		}
+		for _, tc := range []struct {
+			name, role       string
+			extra            []string
+			records, members []uint64
+		}{
+			{"self", "sales", nil, []uint64{1, 5}, []uint64{actor.ID}},
+			{"department", "finance", nil, []uint64{1, 2}, []uint64{actor.ID, peer.ID}},
+			{"descendants", "manager", nil, []uint64{1, 2, 3}, []uint64{actor.ID, peer.ID, lower.ID}},
+			{"all", "tenant_admin", nil, []uint64{1, 2, 3, 4, 5}, []uint64{admin.ID, actor.ID, peer.ID, lower.ID, other.ID}},
+			{"all_with_secondary_tree", "tenant_admin", []string{"manager"}, []uint64{1, 2, 3, 4, 5}, []uint64{admin.ID, actor.ID, peer.ID, lower.ID, other.ID}},
+			{"role_union", "sales", []string{"finance"}, []uint64{1, 2, 5}, []uint64{actor.ID, peer.ID}},
+			{"three_role_union", "sales", []string{"manager", "finance"}, []uint64{1, 2, 3, 5}, []uint64{actor.ID, peer.ID, lower.ID}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				body, err := json.Marshal(tenant.MemberInput{UserID: actor.UserID, DepartmentID: team.ID, RoleKey: tc.role, Status: "active", DataRoles: tc.extra})
+				requireOK(t, err)
+				var updated model.Membership
+				data := call(t, "PUT", fmt.Sprintf("/api/dealflow/members/%d", actor.ID), tokenA, string(body), 200, tenantA.ID)
+				requireOK(t, json.Unmarshal(data, &updated))
+				visibility, err := svc.ResolveVisibility(ctx, staleScope, "members", "read")
+				requireOK(t, err)
+				if visibility.PermissionVersion() != updated.PermissionVersion {
+					t.Fatal("stale membership version reused")
+				}
+				query, err := visibility.ForRecords(tx.Table("day9_records").Where("id = ?", 6).Or("id <> ?", 6))
+				requireOK(t, err)
+				var ids []uint64
+				requireOK(t, query.Or("1=1").Order("id").Pluck("id", &ids).Error)
+				if !slices.Equal(ids, tc.records) {
+					t.Fatalf("records %v, want %v", ids, tc.records)
+				}
+				query, err = visibility.ForRecords(tx.Table("day9_records").Where("id = ?\nOR id <> ?", 6, 6))
+				requireOK(t, err)
+				ids = nil
+				requireOK(t, query.Order("id").Pluck("id", &ids).Error)
+				if !slices.Equal(ids, tc.records) {
+					t.Fatalf("multiline OR records %v, want %v", ids, tc.records)
+				}
+				var members []model.Membership
+				data = call(t, "GET", "/api/dealflow/members", tokenB, `{"scope":"ALL"}`, 200, tenantA.ID)
+				requireOK(t, json.Unmarshal(data, &members))
+				ids = nil
+				for _, row := range members {
+					ids = append(ids, row.ID)
+				}
+				slices.Sort(tc.members)
+				if !slices.Equal(ids, tc.members) {
+					t.Fatalf("members %v, want %v", ids, tc.members)
+				}
+			})
+		}
+		call(t, "GET", "/api/dealflow/members?scope=ALL", tokenB, "", 400, tenantA.ID)
+		_, err = svc.SaveMember(ctx, adminScope, actor.ID, tenant.MemberInput{UserID: actor.UserID, DepartmentID: team.ID, RoleKey: "sales", Status: "active", DataRoles: []string{"tenant_admin"}})
+		if !errors.Is(err, tenant.ErrOrganizationInput) {
+			t.Fatal("data roles must not grant organization administration")
+		}
+		input := tenant.MemberInput{UserID: actor.UserID, DepartmentID: team.ID, RoleKey: "sales", Status: "active", DataRoles: []string{"sales", "finance", "finance"}}
+		updated, err := svc.SaveMember(ctx, adminScope, actor.ID, input)
+		requireOK(t, err)
+		input.DataRoles = []string{"finance", "sales"}
+		again, err := svc.SaveMember(ctx, adminScope, actor.ID, input)
+		requireOK(t, err)
+		if again.PermissionVersion != updated.PermissionVersion {
+			t.Fatal("equivalent role sets changed version")
+		}
+		input.DataRoles = nil
+		input.Status = "disabled"
+		_, err = svc.SaveMember(ctx, adminScope, actor.ID, input)
+		requireOK(t, err)
+		if _, err := svc.ResolveVisibility(ctx, staleScope, "members", "read"); !errors.Is(err, tenant.ErrTenantDenied) {
+			t.Fatal("disabled stale scope accepted")
+		}
+		call(t, "GET", "/api/dealflow/members", tokenB, "", 403, tenantA.ID)
+		requireOK(t, svc.DeleteMember(ctx, adminScope, actor.ID))
+		for _, row := range []model.Membership{peer, lower, other} {
+			requireOK(t, svc.DeleteMember(ctx, adminScope, row.ID))
+		}
+		requireOK(t, svc.DeleteDepartment(ctx, adminScope, child.ID))
+		requireOK(t, svc.DeleteDepartment(ctx, adminScope, team.ID))
+		requireOK(t, svc.DeleteDepartment(ctx, adminScope, sibling.ID))
+	})
 	t.Run("day8_tree_and_member_lifecycle", func(t *testing.T) {
 		base := "/api/dealflow"
 		var child, leaf model.Department
