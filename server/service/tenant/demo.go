@@ -85,7 +85,7 @@ func ensureDemoTenant(tx *gorm.DB, input ProvisionInput, members []member) error
 	}
 	for _, binding := range bindings {
 		role, ok := expected[binding.UserID]
-		if !ok || role != binding.RoleKey || binding.DepartmentID != department.ID || binding.Status != active {
+		if !ok || role != binding.RoleKey || binding.DepartmentID != department.ID || binding.Status != active || len(binding.DataRoles) != 0 {
 			return errors.New("existing membership differs from demo seed")
 		}
 	}

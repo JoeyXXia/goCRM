@@ -97,6 +97,16 @@ func TestDay3TenantLifecycle(t *testing.T) {
 		if len(before) != 8 || !reflect.DeepEqual(before, read()) {
 			t.Fatal("seed retry did not preserve exactly eight memberships")
 		}
+		requireOK(t, db.Model(&model.Membership{}).Where("id = ?", before[0].ID).Update("data_roles", `["finance"]`).Error)
+		if err := svc.SeedDemo(ctx, demo); err == nil {
+			t.Fatal("seed must reject additional data role drift")
+		}
+		var drifted model.Membership
+		requireOK(t, db.Take(&drifted, before[0].ID).Error)
+		if !reflect.DeepEqual(drifted.DataRoles, []string{"finance"}) {
+			t.Fatal("seed overwrote changed data roles")
+		}
+		requireOK(t, db.Model(&model.Membership{}).Where("id = ?", before[0].ID).Update("data_roles", nil).Error)
 		var salesA, salesB model.Membership
 		requireOK(t, db.Where("tenant_id = ? AND user_id = ?", a.ID, demo.Sales).Take(&salesA).Error)
 		requireOK(t, db.Where("tenant_id = ? AND user_id = ?", b.ID, demo.Sales).Take(&salesB).Error)
