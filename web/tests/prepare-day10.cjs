@@ -1,0 +1,5 @@
+const fs = require('node:fs')
+const fixture = JSON.parse(fs.readFileSync('.local/day10-browser.json', 'utf8'))
+const source = fs.readFileSync('web/tests/day10-browser.js', 'utf8')
+fs.writeFileSync('.local/day10-browser-run.js', source.replace('/* DAY10_FIXTURE */ null', JSON.stringify(fixture)), { mode: 0o600 })
+console.log('Prepared local browser fixture script')

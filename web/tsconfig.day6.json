@@ -8,5 +8,5 @@
     "paths": { "@/*": ["./src/*"] },
     "skipLibCheck": true
   },
-  "files": ["src/api/dealflow.ts", "src/pinia/modules/dealflow-session.ts"]
+  "files": ["src/api/dealflow.ts", "src/api/dealflow-crm.ts", "src/pinia/modules/dealflow-session.ts"]
 }

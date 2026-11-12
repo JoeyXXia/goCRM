@@ -22,6 +22,18 @@ const routes = [
     meta: { title: 'DealFlow 工作台', dealflow: true },
     children: [
       {
+        path: 'customers',
+        name: 'DealflowCustomers',
+        component: () => import('@/view/dealflow/customers.vue'),
+        meta: { title: '客户', customers: true }
+      },
+      {
+        path: 'customers/:id([1-9][0-9]*)',
+        name: 'DealflowCustomer',
+        component: () => import('@/view/dealflow/customer.vue'),
+        meta: { title: '客户详情', customers: true }
+      },
+      {
         path: 'departments/:id([1-9][0-9]*)',
         name: 'DealflowDepartment',
         component: () => import('@/view/dealflow/department.vue'),

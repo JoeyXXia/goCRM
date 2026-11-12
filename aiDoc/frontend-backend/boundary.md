@@ -39,6 +39,16 @@
 - 创建与完整更新成员可携带 `dataRoles` 字符串数组，允许附加 `sales`、`manager`、`finance`。同动作的允许范围取并集，最外层始终限制可信租户。额外数据角色由管理员写入，组织写权限继续使用主角色。省略该字段清空附加角色，角色集合排序并去重，变化时递增 `permissionVersion`。
 - 客户端提供的角色、范围或部门列表不会成为读权限来源。查询参数继续被拒绝，GET 请求体不参与范围解析。每次读取重新获取当前成员及权限版本，数据过滤结果限本次请求使用。规则详见 [数据范围 ADR](../../docs/adr/0003-record-visibility.md)。
 
+## Day 10 客户与联系人
+
+- 客户使用 `/dealflow/customers` 的 GET/POST 与 `/dealflow/customers/:id` 的 GET/PUT/DELETE。输入仅为 `name`、`industry`、`remark`，名称必填。创建时服务端生成 C-UUID 业务编号，并从可信成员关系填写 tenantId、ownerId、departmentId。更新使用完整可编辑字段，可选字段省略时清空。
+- 客户列表接收 page（默认 1）、pageSize（默认 20，最大 100）、sort（id/name/code）、order（asc/desc）、keyword（名称包含文本）。拒绝重复或未知参数。响应保持 `{ list, total, page, pageSize }`，客户及联系人所有 ID 使用十进制字符串。
+- `GET /dealflow/customers/batch?ids=...` 和 `GET /dealflow/contacts/batch?ids=...` 接收最多 100 个逗号分隔的 ID，只返回可见项。查询 DTO 白名单仅在这两条路由和客户列表启用，其余企业入口继续拒绝查询参数。
+- 联系人使用 `/dealflow/customers/:id/contacts` 的 GET/POST 与 `/dealflow/contacts/:id` 的 GET/PUT/DELETE。输入仅为 name、phone、email、title，name 必填。联系人直接详情、更新、删除及批量读取均校验所属客户的范围。输入中的 customerId、tenantId、ownerId 被拒绝。
+- 客户动作沿用四级范围，销售为本人，经理为本部门及后代，管理员为本租户全部。财务仅有本部门读取权限。创建权限取主角色（销售、经理、管理员），记录读写按该动作的主角色及附加数据角色合并。客户详情返回 canUpdate/canDelete，联系人写操作使用客户 update 权限。
+- 客户详情包含负责人显示名与部门名。客户有联系人时删除返回 409，先移除联系人再删除客户。拥有客户的成员或部门受外键保护。接口不提供负责人或部门改绑，后续通过受控转移实现。
+- Vue 页面复用工作台的企业切换与请求取消，客户列表在新查询开始时清空旧结果，详情退出时取消读取与保存请求。只读状态由当前记录的服务端权限字段决定。
+
 ## 变更规则
 
 - 涉及破坏性接口调整时，要先写清楚变更范围

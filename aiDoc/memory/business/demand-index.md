@@ -9,6 +9,8 @@
 
 ## Done
 
+- [Day 10 客户与联系人](done/dealflow-day10.md)
+
 - [Day 9 数据范围与授权测试](done/dealflow-day9.md)
 
 - [Day 8 部门树与成员管理](done/dealflow-day8.md)

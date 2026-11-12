@@ -36,11 +36,12 @@
           <RouterLink :to="{ name: 'DealflowDepartment', params: { id: session.workspace.departmentId } }">
             我的部门
           </RouterLink>
+          <RouterLink v-if="customers" :to="{ name: 'DealflowCustomers' }">客户</RouterLink>
         </nav>
-        <p v-if="!departments || (route.meta.renameDepartment && !departments.canRename)" role="alert">
+        <p v-if="!departments || (route.meta.renameDepartment && !departments.canRename) || (route.meta.customers && !customers)" role="alert">
           无权访问此页面。
         </p>
-        <p v-else-if="route.name === 'DealflowWorkspace'">从企业菜单打开你的部门。</p>
+        <p v-else-if="route.name === 'DealflowWorkspace'">从企业菜单选择功能。</p>
         <RouterView
           v-else
           :key="`${session.workspace.id}:${route.fullPath}`"
@@ -48,6 +49,7 @@
           :department-id="String(route.params.id)"
           :can-rename="departments.canRename"
           :renaming="Boolean(route.meta.renameDepartment)"
+          :can-create="Boolean(customers?.canCreate)"
         />
       </template>
     </el-card>
@@ -73,6 +75,7 @@ const router = useRouter()
 const route = useRoute()
 const switching = ref(false)
 const departments = computed(() => session.menu?.find(item => item.key === 'departments'))
+const customers = computed(() => session.menu?.find(item => item.key === 'customers'))
 
 async function switchWorkspace(event: Event) {
   const id = (event.target as HTMLSelectElement).value

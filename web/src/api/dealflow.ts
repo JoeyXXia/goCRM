@@ -10,6 +10,7 @@ export interface Workspace {
 export interface MenuItem {
   key: string
   canRename: boolean
+  canCreate?: boolean
 }
 
 export interface Department {
