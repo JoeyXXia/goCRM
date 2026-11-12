@@ -183,6 +183,117 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		}
 	})
 	const workspaces = "/api/dealflow/workspaces"
+	t.Run("day10_customers_and_contacts", func(t *testing.T) {
+		base := "/api/dealflow"
+		adminScope, err := svc.ResolveTenant(ctx, uint64(userA.ID), tenantA.ID)
+		requireOK(t, err)
+		member, err := svc.SaveMember(ctx, adminScope, 0, tenant.MemberInput{UserID: uint64(userB.ID), DepartmentID: deptA.ID, RoleKey: "sales", Status: "active"})
+		requireOK(t, err)
+		create := func(token, name string, enterprise uint64) model.Customer {
+			var row model.Customer
+			requireOK(t, json.Unmarshal(call(t, "POST", base+"/customers", token, fmt.Sprintf(`{"name":"%s","industry":"设备","remark":"初次联系"}`, name), 200, enterprise), &row))
+			return row
+		}
+		own := create(tokenB, "Zulu", tenantA.ID)
+		peer := create(tokenA, "Alpha", tenantA.ID)
+		foreign := create(tokenB, "Beta", tenantB.ID)
+		if own.OwnerID != uint64(userB.ID) || own.TenantID != tenantA.ID || own.DepartmentID != deptA.ID || len(own.Code) != 38 || own.Code == peer.Code {
+			t.Fatal("server assignments or business code invalid")
+		}
+		customerURL := func(id uint64) string { return fmt.Sprintf("%s/customers/%d", base, id) }
+		contactURL := func(id uint64) string { return fmt.Sprintf("%s/contacts/%d", base, id) }
+		for _, field := range []string{"ownerId", "tenantId", "departmentId", "code"} {
+			body := fmt.Sprintf(`{"name":"forged","%s":"%d"}`, field, tenantB.ID)
+			call(t, "POST", base+"/customers", tokenB, body, 400, tenantA.ID)
+			call(t, "PUT", customerURL(own.ID), tokenB, body, 400, tenantA.ID)
+		}
+		for _, id := range []uint64{peer.ID, foreign.ID} {
+			call(t, "GET", customerURL(id), tokenB, "", 404, tenantA.ID)
+			call(t, "PUT", customerURL(id), tokenB, `{"name":"tampered"}`, 404, tenantA.ID)
+			call(t, "DELETE", customerURL(id), tokenB, "", 404, tenantA.ID)
+		}
+		encoded, err := json.Marshal(tenant.CustomerInput{Name: strings.Repeat("<", 128), Industry: strings.Repeat("<", 64), Remark: strings.Repeat("<", 512)})
+		requireOK(t, err)
+		var maximum model.Customer
+		requireOK(t, json.Unmarshal(call(t, "POST", base+"/customers", tokenB, string(encoded), 200, tenantA.ID), &maximum))
+		call(t, "DELETE", customerURL(maximum.ID), tokenB, "", 200, tenantA.ID)
+		call(t, "GET", customerURL(foreign.ID), tokenA, "", 403, tenantB.ID)
+		var page tenant.CustomerPage
+		requireOK(t, json.Unmarshal(call(t, "GET", base+"/customers?page=1&pageSize=1&sort=name&order=asc", tokenA, "", 200, tenantA.ID), &page))
+		if page.Total != 2 || len(page.List) != 1 || page.List[0].ID != peer.ID || page.List[0].OwnerName == "" || page.List[0].DepartmentName == "" {
+			t.Fatalf("unexpected customer page: %+v", page)
+		}
+		requireOK(t, json.Unmarshal(call(t, "GET", base+"/customers?keyword=Alpha", tokenB, "", 200, tenantA.ID), &page))
+		if page.Total != 0 || len(page.List) != 0 {
+			t.Fatal("search leaked another owner's customer")
+		}
+		for _, query := range []string{"sort=owner_id", "sort=name%20DESC", "page=0", "pageSize=101", "page=1&page=2", "tenantId=1", "scope=ALL", "ids=1"} {
+			call(t, "GET", base+"/customers?"+query, tokenB, "", 400, tenantA.ID)
+		}
+		var batch []tenant.CustomerSummary
+		ids := fmt.Sprintf("%d,%d,%d", peer.ID, own.ID, foreign.ID)
+		requireOK(t, json.Unmarshal(call(t, "GET", base+"/customers/batch?ids="+ids, tokenB, "", 200, tenantA.ID), &batch))
+		if len(batch) != 1 || batch[0].ID != own.ID {
+			t.Fatal("customer batch escaped visibility")
+		}
+		call(t, "GET", base+"/customers/batch?ids=0", tokenB, "", 400, tenantA.ID)
+		call(t, "PUT", customerURL(own.ID), tokenB, `{"name":"Zulu edited","industry":"","remark":""}`, 200, tenantA.ID)
+		var detail tenant.CustomerDetail
+		requireOK(t, json.Unmarshal(call(t, "GET", customerURL(own.ID), tokenB, "", 200, tenantA.ID), &detail))
+		if detail.Name != "Zulu edited" || detail.OwnerID != own.OwnerID || detail.Code != own.Code || !detail.CanUpdate || !detail.CanDelete {
+			t.Fatal("customer update changed ownership or controls")
+		}
+		addContact := func(customer uint64, token string, enterprise uint64) model.Contact {
+			var row model.Contact
+			requireOK(t, json.Unmarshal(call(t, "POST", customerURL(customer)+"/contacts", token, `{"name":"联系人","phone":"12345","email":"contact@example.test","title":"采购"}`, 200, enterprise), &row))
+			return row
+		}
+		person := addContact(own.ID, tokenB, tenantA.ID)
+		peerPerson := addContact(peer.ID, tokenA, tenantA.ID)
+		foreignPerson := addContact(foreign.ID, tokenB, tenantB.ID)
+		for _, id := range []uint64{peerPerson.ID, foreignPerson.ID} {
+			call(t, "GET", contactURL(id), tokenB, "", 404, tenantA.ID)
+			call(t, "PUT", contactURL(id), tokenB, `{"name":"tampered"}`, 404, tenantA.ID)
+			call(t, "DELETE", contactURL(id), tokenB, "", 404, tenantA.ID)
+		}
+		call(t, "POST", customerURL(foreign.ID)+"/contacts", tokenB, `{"name":"foreign"}`, 404, tenantA.ID)
+		call(t, "GET", customerURL(peer.ID)+"/contacts", tokenB, "", 404, tenantA.ID)
+		call(t, "POST", customerURL(own.ID)+"/contacts", tokenB, `{"name":"bad","customerId":"1"}`, 400, tenantA.ID)
+		call(t, "PUT", contactURL(person.ID), tokenB, `{"name":"bad","customerId":"1"}`, 400, tenantA.ID)
+		call(t, "PUT", contactURL(person.ID), tokenB, `{"name":"bad","email":"invalid"}`, 400, tenantA.ID)
+		call(t, "PUT", contactURL(person.ID), tokenB, `{"name":"联系人更新","phone":"","email":"","title":""}`, 200, tenantA.ID)
+		var contacts []model.Contact
+		ids = fmt.Sprintf("%d,%d,%d", peerPerson.ID, person.ID, foreignPerson.ID)
+		requireOK(t, json.Unmarshal(call(t, "GET", base+"/contacts/batch?ids="+ids, tokenB, "", 200, tenantA.ID), &contacts))
+		if len(contacts) != 1 || contacts[0].ID != person.ID || contacts[0].Name != "联系人更新" || contacts[0].Email != "" {
+			t.Fatal("contact batch or update invalid")
+		}
+		_, err = svc.SaveMember(ctx, adminScope, member.ID, tenant.MemberInput{UserID: member.UserID, DepartmentID: deptA.ID, RoleKey: "sales", Status: "active", DataRoles: []string{"finance"}})
+		requireOK(t, err)
+		requireOK(t, json.Unmarshal(call(t, "GET", customerURL(peer.ID), tokenB, "", 200, tenantA.ID), &detail))
+		if detail.CanUpdate || detail.CanDelete {
+			t.Fatal("read grant incorrectly granted write controls")
+		}
+		call(t, "GET", contactURL(peerPerson.ID), tokenB, "", 200, tenantA.ID)
+		call(t, "PUT", contactURL(peerPerson.ID), tokenB, `{"name":"read only"}`, 404, tenantA.ID)
+		call(t, "DELETE", customerURL(own.ID), tokenB, "", 409, tenantA.ID)
+		badCustomer := model.Customer{TenantID: tenantA.ID, Code: "C-" + uuid.NewString(), Name: "bad", OwnerID: uint64(operator.ID), DepartmentID: deptA.ID}
+		expectForeignKeyViolation(t, tx.Create(&badCustomer).Error)
+		badCustomer.ID = 0
+		badCustomer.Code = "C-" + uuid.NewString()
+		badCustomer.OwnerID = uint64(userA.ID)
+		badCustomer.DepartmentID = deptB.ID
+		expectForeignKeyViolation(t, tx.Create(&badCustomer).Error)
+		expectForeignKeyViolation(t, tx.Create(&model.Contact{TenantID: tenantA.ID, CustomerID: foreign.ID, Name: "bad"}).Error)
+		call(t, "DELETE", contactURL(person.ID), tokenB, "", 200, tenantA.ID)
+		call(t, "DELETE", customerURL(own.ID), tokenB, "", 200, tenantA.ID)
+		call(t, "GET", contactURL(person.ID), tokenB, "", 404, tenantA.ID)
+		requireOK(t, svc.DeleteMember(ctx, adminScope, member.ID))
+		call(t, "DELETE", contactURL(peerPerson.ID), tokenA, "", 200, tenantA.ID)
+		call(t, "DELETE", customerURL(peer.ID), tokenA, "", 200, tenantA.ID)
+		call(t, "DELETE", contactURL(foreignPerson.ID), tokenB, "", 200, tenantB.ID)
+		call(t, "DELETE", customerURL(foreign.ID), tokenB, "", 200, tenantB.ID)
+	})
 	t.Run("day9_visibility_matrix_and_permission_refresh", func(t *testing.T) {
 		adminScope, err := svc.ResolveTenant(ctx, uint64(userA.ID), tenantA.ID)
 		requireOK(t, err)
@@ -223,7 +334,7 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		if _, err := (tenant.Visibility{}).ForRecords(tx.Table("day9_records")); !errors.Is(err, tenant.ErrTenantDenied) {
 			t.Fatal("zero visibility must deny")
 		}
-		if _, err := svc.ResolveVisibility(ctx, staleScope, "customers", "read"); !errors.Is(err, tenant.ErrTenantDenied) {
+		if _, err := svc.ResolveVisibility(ctx, staleScope, "contracts", "read"); !errors.Is(err, tenant.ErrTenantDenied) {
 			t.Fatal("unmapped resource must deny")
 		}
 		if _, err := svc.ResolveVisibility(ctx, staleScope, "members", "write"); !errors.Is(err, tenant.ErrTenantDenied) {
@@ -418,10 +529,10 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		}).Error)
 		checkWorkspaces(a, b)
 		const menu = "/api/dealflow/menu"
-		if got := string(call(t, "GET", menu, tokenA, "", 200, tenantA.ID)); got != `[{"key":"departments","canRename":true}]` {
+		if got := string(call(t, "GET", menu, tokenA, "", 200, tenantA.ID)); got != `[{"key":"departments","canRename":true},{"key":"customers","canRename":false,"canCreate":true}]` {
 			t.Fatalf("unexpected admin menu: %s", got)
 		}
-		if got := string(call(t, "GET", menu, tokenA, "", 200, tenantB.ID)); got != `[{"key":"departments","canRename":false}]` {
+		if got := string(call(t, "GET", menu, tokenA, "", 200, tenantB.ID)); got != `[{"key":"departments","canRename":false},{"key":"customers","canRename":false,"canCreate":true}]` {
 			t.Fatalf("unexpected sales menu: %s", got)
 		}
 		call(t, "GET", url(deptB.ID), tokenA, "", 200, tenantB.ID)

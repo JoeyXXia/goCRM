@@ -1,4 +1,149 @@
 definitions:
+  tenant.CustomerSummary:
+    properties:
+      code:
+        type: string
+      departmentId:
+        example: ""
+        type: string
+      departmentName:
+        type: string
+      id:
+        example: ""
+        type: string
+      industry:
+        type: string
+      name:
+        type: string
+      ownerId:
+        example: ""
+        type: string
+      ownerName:
+        type: string
+      remark:
+        type: string
+      tenantId:
+        example: ""
+        type: string
+    type: object
+  tenant.CustomerPage:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/tenant.CustomerSummary'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        type: integer
+      total:
+        type: integer
+    type: object
+  tenant.CustomerInput:
+    properties:
+      industry:
+        maxLength: 64
+        type: string
+      name:
+        maxLength: 128
+        type: string
+      remark:
+        maxLength: 512
+        type: string
+    required:
+    - name
+    type: object
+  tenant.CustomerDetail:
+    properties:
+      canDelete:
+        type: boolean
+      canUpdate:
+        type: boolean
+      code:
+        type: string
+      departmentId:
+        example: ""
+        type: string
+      departmentName:
+        type: string
+      id:
+        example: ""
+        type: string
+      industry:
+        type: string
+      name:
+        type: string
+      ownerId:
+        example: ""
+        type: string
+      ownerName:
+        type: string
+      remark:
+        type: string
+      tenantId:
+        example: ""
+        type: string
+    type: object
+  tenant.Customer:
+    properties:
+      code:
+        type: string
+      departmentId:
+        example: ""
+        type: string
+      id:
+        example: ""
+        type: string
+      industry:
+        type: string
+      name:
+        type: string
+      ownerId:
+        example: ""
+        type: string
+      remark:
+        type: string
+      tenantId:
+        example: ""
+        type: string
+    type: object
+  tenant.ContactInput:
+    properties:
+      email:
+        maxLength: 254
+        type: string
+      name:
+        maxLength: 128
+        type: string
+      phone:
+        maxLength: 32
+        type: string
+      title:
+        maxLength: 64
+        type: string
+    required:
+    - name
+    type: object
+  tenant.Contact:
+    properties:
+      customerId:
+        example: ""
+        type: string
+      email:
+        type: string
+      id:
+        example: ""
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      tenantId:
+        example: ""
+        type: string
+      title:
+        type: string
+    type: object
   tenant.Membership:
     properties:
       dataRoles:
@@ -75,6 +220,8 @@ definitions:
     type: object
   tenant.MenuItem:
     properties:
+      canCreate:
+        type: boolean
       canRename:
         type: boolean
       key:
@@ -2048,6 +2195,624 @@ info:
   title: Gin-Vue-Admin Swagger API接口文档
   version: v2.7.9-beta
 paths:
+  /dealflow/customers/{id}/contacts:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 客户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/tenant.Contact'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 查询可见客户的联系人
+      tags:
+      - DealFlow CRM
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 客户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 联系人名称电话邮箱和职位
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.ContactInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Contact'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 为可编辑客户新增联系人
+      tags:
+      - DealFlow CRM
+  /dealflow/customers/{id}:
+    delete:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 客户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 删除无联系人的可管理客户
+      tags:
+      - DealFlow CRM
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 客户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.CustomerDetail'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 查询客户详情及当前记录操作权限
+      tags:
+      - DealFlow CRM
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 客户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 完整可编辑字段，省略可选字段将清空
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.CustomerInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 更新可见且可编辑客户的名称行业和备注
+      tags:
+      - DealFlow CRM
+  /dealflow/customers/batch:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 逗号分隔的客户 ID，最多 100 项
+        in: query
+        name: ids
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/tenant.CustomerSummary'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 批量查询可见客户
+      tags:
+      - DealFlow CRM
+  /dealflow/customers:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 页码，默认 1，最大 1000000
+        in: query
+        name: page
+        type: integer
+      - description: 每页 1 至 100，默认 20
+        in: query
+        name: pageSize
+        type: integer
+      - description: id、name 或 code，默认 id
+        in: query
+        name: sort
+        type: string
+      - description: asc 或 desc，默认 desc
+        in: query
+        name: order
+        type: string
+      - description: 客户名称包含文本，最大 128 字符
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.CustomerPage'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 分页查询当前可见客户
+      tags:
+      - DealFlow CRM
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 仅客户名称、行业与备注
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.CustomerInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Customer'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 创建本人负责的客户
+      tags:
+      - DealFlow CRM
+  /dealflow/contacts/{id}:
+    delete:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 联系人 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 删除可编辑客户的联系人
+      tags:
+      - DealFlow CRM
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 联系人 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tenant.Contact'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 查询联系人并校验所属客户可见性
+      tags:
+      - DealFlow CRM
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 联系人 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 完整可编辑字段，省略可选字段将清空
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.ContactInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 更新联系人可编辑字段
+      tags:
+      - DealFlow CRM
+  /dealflow/contacts/batch:
+    get:
+      parameters:
+      - description: 当前租户 ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 逗号分隔的联系人 ID，最多 100 项
+        in: query
+        name: ids
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/tenant.Contact'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 批量查询可见客户的联系人
+      tags:
+      - DealFlow CRM
   /dealflow/members/{id}:
     delete:
       parameters:

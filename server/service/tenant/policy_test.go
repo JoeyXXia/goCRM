@@ -18,7 +18,9 @@ func TestEnterprisePolicyDomainAndDefaultDeny(t *testing.T) {
 	}{
 		{"own tenant rename", domain, "departments", "rename", true},
 		{"adjacent tenant rename", domain + 1, "departments", "rename", false},
-		{"unmapped customer read", domain, "customers", "read", false},
+		{"own tenant customer read", domain, "customers", "read", true},
+		{"other tenant customer read", domain + 1, "customers", "read", false},
+		{"unmapped contract read", domain, "contracts", "read", false},
 		{"platform metadata", domain, "platform.tenants", "read", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

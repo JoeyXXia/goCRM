@@ -11,10 +11,14 @@ import (
 )
 
 func organizationBody(c *gin.Context, target any) bool {
-	body := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 4096))
+	return strictBody(c, target, 4096)
+}
+
+func strictBody(c *gin.Context, target any, maximum int64) bool {
+	body := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, maximum))
 	body.DisallowUnknownFields()
 	if err := body.Decode(target); err != nil || body.Decode(new(json.RawMessage)) != io.EOF {
-		fail(c, http.StatusBadRequest, "组织参数无效")
+		fail(c, http.StatusBadRequest, "请求参数无效")
 		return false
 	}
 	return true

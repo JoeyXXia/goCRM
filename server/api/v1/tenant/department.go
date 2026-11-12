@@ -46,6 +46,15 @@ func authenticatedUserID(c *gin.Context) uint64 {
 }
 
 func (api DepartmentAPI) ResolveTenant(c *gin.Context) {
+	api.resolveTenant(c, false)
+}
+
+// ResolveTenantQuery is used only by CRM endpoints with explicit query DTO validation.
+func (api DepartmentAPI) ResolveTenantQuery(c *gin.Context) {
+	api.resolveTenant(c, true)
+}
+
+func (api DepartmentAPI) resolveTenant(c *gin.Context, allowQuery bool) {
 	userID := authenticatedUserID(c)
 	if userID == 0 {
 		return
@@ -56,7 +65,7 @@ func (api DepartmentAPI) ResolveTenant(c *gin.Context) {
 		return
 	}
 	id, err := strconv.ParseUint(ids[0], 10, 64)
-	if err != nil || id == 0 || c.Request.URL.RawQuery != "" {
+	if err != nil || id == 0 || (!allowQuery && c.Request.URL.RawQuery != "") {
 		fail(c, http.StatusBadRequest, "租户选择或请求参数无效")
 		return
 	}
@@ -181,7 +190,7 @@ func departmentRequest(c *gin.Context) (tenantRequest, uint64, bool) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		fail(c, http.StatusBadRequest, "部门 ID 无效")
+		fail(c, http.StatusBadRequest, "资源 ID 无效")
 		return req, 0, false
 	}
 	return req, id, true
@@ -199,10 +208,18 @@ func resolvedRequest(c *gin.Context) (tenantRequest, bool) {
 func failService(c *gin.Context, err error) {
 	var dbError *mysql.MySQLError
 	if errors.As(err, &dbError) && (dbError.Number == 1062 || dbError.Number == 1451 || dbError.Number == 1452 || dbError.Number == 1216 || dbError.Number == 1217) {
-		fail(c, http.StatusConflict, "组织关联冲突")
+		fail(c, http.StatusConflict, "记录存在关联或编号冲突")
 		return
 	}
 	switch {
+	case errors.Is(err, service.ErrCRMInput):
+		fail(c, http.StatusBadRequest, "客户或联系人参数无效")
+	case errors.Is(err, service.ErrCustomerNotFound):
+		fail(c, http.StatusNotFound, "客户不存在")
+	case errors.Is(err, service.ErrContactNotFound):
+		fail(c, http.StatusNotFound, "联系人不存在")
+	case errors.Is(err, service.ErrCustomerHasContacts):
+		fail(c, http.StatusConflict, "请先移除客户联系人")
 	case errors.Is(err, service.ErrOrganizationInput), errors.Is(err, service.ErrAccountUnavailable):
 		fail(c, http.StatusBadRequest, "组织参数无效")
 	case errors.Is(err, service.ErrOrganizationConflict):

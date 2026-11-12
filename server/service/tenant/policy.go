@@ -47,6 +47,17 @@ var enterprisePolicy = sync.OnceValues(func() (*casbin.SyncedEnforcer, error) {
 		[]string{"finance", "members", "read", "DEPARTMENT"},
 		[]string{"manager", "members", "read", "DEPARTMENT_AND_CHILDREN"},
 	)
+	for _, grant := range []struct{ role, dataRange string }{
+		{administrator, "ALL"}, {"sales", "SELF"}, {"manager", "DEPARTMENT_AND_CHILDREN"}, {"finance", "DEPARTMENT"},
+	} {
+		rules = append(rules, []string{grant.role, "customers", "read", grant.dataRange})
+		if grant.role != "finance" {
+			for _, action := range []string{"update", "delete"} {
+				rules = append(rules, []string{grant.role, "customers", action, grant.dataRange})
+			}
+			rules = append(rules, []string{grant.role, "customers", "create", ""})
+		}
+	}
 	_, err = enforcer.AddPolicies(rules)
 	return enforcer, err
 })
@@ -60,8 +71,18 @@ func (scope TenantContext) allows(domain uint64, resource, action string) (bool,
 	if err != nil {
 		return false, err
 	}
-	member := enterpriseMember{Domain: strconv.FormatUint(membership.TenantID, 10), Role: membership.RoleKey}
-	return enforcer.Enforce(member, strconv.FormatUint(domain, 10), resource, action)
+	roles := []string{membership.RoleKey}
+	if resource == "customers" && action != "create" {
+		roles = append(roles, membership.DataRoles...)
+	}
+	for _, role := range roles {
+		member := enterpriseMember{Domain: strconv.FormatUint(membership.TenantID, 10), Role: role}
+		allowed, err := enforcer.Enforce(member, strconv.FormatUint(domain, 10), resource, action)
+		if err != nil || allowed {
+			return allowed, err
+		}
+	}
+	return false, nil
 }
 
 func (scope TenantContext) require(resource, action string) error {
@@ -78,6 +99,7 @@ func (scope TenantContext) require(resource, action string) error {
 type MenuItem struct {
 	Key       string `json:"key"`
 	CanRename bool   `json:"canRename"`
+	CanCreate bool   `json:"canCreate,omitempty"`
 }
 
 func (s *Service) Menu(scope TenantContext) ([]MenuItem, error) {
@@ -94,5 +116,17 @@ func (s *Service) Menu(scope TenantContext) ([]MenuItem, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append(items, MenuItem{Key: "departments", CanRename: rename}), nil
+	items = append(items, MenuItem{Key: "departments", CanRename: rename})
+	read, err = scope.allows(domain, "customers", "read")
+	if err != nil {
+		return nil, err
+	}
+	if read {
+		create, err := scope.allows(domain, "customers", "create")
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, MenuItem{Key: "customers", CanCreate: create})
+	}
+	return items, nil
 }
