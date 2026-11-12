@@ -14,7 +14,7 @@ const enterpriseModel = `
 [request_definition]
 r = member, dom, obj, act
 [policy_definition]
-p = role, obj, act
+p = role, obj, act, scope
 [policy_effect]
 e = some(where (p.eft == allow))
 [matchers]
@@ -37,10 +37,16 @@ var enterprisePolicy = sync.OnceValues(func() (*casbin.SyncedEnforcer, error) {
 	}
 	var rules [][]string
 	for _, role := range []string{administrator, "sales", "manager", "finance"} {
-		rules = append(rules, []string{role, "departments", "read"}, []string{role, "menu", "view"})
+		rules = append(rules, []string{role, "departments", "read", ""}, []string{role, "menu", "view", ""})
 	}
-	rules = append(rules, []string{administrator, "departments", "rename"})
-	rules = append(rules, []string{administrator, "organization", "manage"})
+	rules = append(rules, []string{administrator, "departments", "rename", ""})
+	rules = append(rules, []string{administrator, "organization", "manage", ""})
+	rules = append(rules,
+		[]string{administrator, "members", "read", "ALL"},
+		[]string{"sales", "members", "read", "SELF"},
+		[]string{"finance", "members", "read", "DEPARTMENT"},
+		[]string{"manager", "members", "read", "DEPARTMENT_AND_CHILDREN"},
+	)
 	_, err = enforcer.AddPolicies(rules)
 	return enforcer, err
 })
