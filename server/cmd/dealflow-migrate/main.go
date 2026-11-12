@@ -82,7 +82,10 @@ func migrate(ctx context.Context, db *sql.DB, includeTenants bool) error {
 		if err := migrateOrganization(ctx, conn); err != nil {
 			return err
 		}
-		return migrateDataRoles(ctx, conn)
+		if err := migrateDataRoles(ctx, conn); err != nil {
+			return err
+		}
+		return migrateCustomers(ctx, conn)
 	}
 	return nil
 }
@@ -150,5 +153,6 @@ func main() {
 		fmt.Println("Migration 002 verified")
 		fmt.Println("Migration 003 verified")
 		fmt.Println("Migration 004 verified")
+		fmt.Println("Migration 005 verified")
 	}
 }
