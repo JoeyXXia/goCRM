@@ -49,6 +49,15 @@
 - 客户详情包含负责人显示名与部门名。客户有联系人时删除返回 409，先移除联系人再删除客户。拥有客户的成员或部门受外键保护。接口不提供负责人或部门改绑，后续通过受控转移实现。
 - Vue 页面复用工作台的企业切换与请求取消，客户列表在新查询开始时清空旧结果，详情退出时取消读取与保存请求。只读状态由当前记录的服务端权限字段决定。
 
+## Day 11 对 Day 10 契约的扩展
+
+- 客户响应增加 `nextFollowupAt: RFC3339|null`，详情增加 canTransfer。客户列表增加 followup（空/none/overdue/scheduled），sort 增加 nextFollowupAt。所有 ID 继续使用十进制字符串。
+- `GET /dealflow/customers/:id/followups` 接收 page/pageSize（默认1/20，最大100），返回标准分页，按 createdAt/id 倒序；POST 只接受 content（1–1024字）和 nextFollowupAt（RFC3339，省略/null清空）。归属与操作者由服务端填写。读跟进需要客户 read，新增需要 update。跟进与下次时间及审计同事务写入，有历史的客户删除返回409。
+- `GET .../:id/transfer-targets` 查询当前范围内可接收的启用成员，POST `.../:id/transfer` 只接受 `{ownerId:string}`。主角色为管理员/经理且具客户 transfer 范围才可操作，接收人须为同租户启用的 sales/manager/tenant_admin，经理接收范围限其部门树。部门取目标当前成员关系，不能由请求指定。重复相同归属无操作。
+- `GET .../:id/audit` 仅向可管理该客户的主角色管理员/经理返回最近100条，审计固定字段为动作、各标识、请求ID、时间，显示名读取时关联；不包含客户/联系人/跟进请求内容。业务HTTP审计关联服务端 X-Request-ID。失败操作不生成成功审计。
+- 联系人详情、列表、批量查询返回 ContactView（增加 masked:boolean）。无该客户 update 权限时电话邮箱脱敏，前端不得将 masked 记录作为编辑初值。创建联系人仍返回原 Contact 结构，创建者已经具有 update 权限。自由文本内容不自动识别脱敏。
+- 前端输入和显示跟进时间使用浏览器本地时区，通过 ISO 字符串传输；只追加历史，不提供修改历史、审计导出或跨客户全局审计搜索。
+
 ## 变更规则
 
 - 涉及破坏性接口调整时，要先写清楚变更范围

@@ -67,6 +67,8 @@ func TestDay10BrowserFixture(t *testing.T) {
 			return
 		}
 		requireOK(t, db.Where("tenant_id IN ?", ids).Delete(&model.Contact{}).Error)
+		requireOK(t, db.Where("tenant_id IN ?", ids).Delete(&model.Followup{}).Error)
+		requireOK(t, db.Where("tenant_id IN ?", ids).Delete(&model.AuditEvent{}).Error)
 		requireOK(t, db.Where("tenant_id IN ?", ids).Delete(&model.Customer{}).Error)
 		requireOK(t, db.Where("tenant_id IN ?", ids).Delete(&model.Membership{}).Error)
 		requireOK(t, db.Model(&model.Department{}).Where("tenant_id IN ?", ids).Update("parent_id", nil).Error)
@@ -94,6 +96,14 @@ func TestDay10BrowserFixture(t *testing.T) {
 	}
 	scopeB, err := svc.ResolveTenant(ctx, uint64(users[2].ID), b.ID)
 	requireOK(t, err)
+	if os.Getenv("DEALFLOW_BROWSER_SCENARIO") == "day11" {
+		scope, err := svc.ResolveTenant(ctx, uint64(users[0].ID), a.ID)
+		requireOK(t, err)
+		department, err := svc.SaveDepartment(ctx, scope, 0, tenant.DepartmentInput{Code: "d11-target", Name: "转移目标团队"})
+		requireOK(t, err)
+		_, err = svc.SaveMember(ctx, scope, 0, tenant.MemberInput{UserID: uint64(users[2].ID), DepartmentID: department.ID, RoleKey: "sales", Status: "active"})
+		requireOK(t, err)
+	}
 	foreign, err := svc.CreateCustomer(ctx, scopeB, tenant.CustomerInput{Name: "企业 B 客户", Industry: "物流"})
 	requireOK(t, err)
 	_, err = svc.CreateContact(ctx, scopeB, foreign.ID, tenant.ContactInput{Name: "B 联系人", Email: "b@example.test"})
@@ -109,6 +119,10 @@ func TestDay10BrowserFixture(t *testing.T) {
 	global.BlackCache = local_cache.NewCache(local_cache.SetDefaultExpire(time.Hour))
 	jwt := utils.NewJWT()
 	token, err := jwt.CreateToken(jwt.CreateClaims(request.BaseClaims{ID: users[1].ID, UUID: users[1].UUID, AuthorityId: 704}))
+	requireOK(t, err)
+	adminToken, err := jwt.CreateToken(jwt.CreateClaims(request.BaseClaims{ID: users[0].ID, UUID: users[0].UUID, AuthorityId: 704}))
+	requireOK(t, err)
+	newOwnerToken, err := jwt.CreateToken(jwt.CreateClaims(request.BaseClaims{ID: users[2].ID, UUID: users[2].UUID, AuthorityId: 704}))
 	requireOK(t, err)
 	gin.SetMode(gin.TestMode)
 	mux := gin.New()
@@ -134,7 +148,7 @@ func TestDay10BrowserFixture(t *testing.T) {
 	served := make(chan error, 1)
 	go func() { served <- server.Serve(listener) }()
 	t.Cleanup(func() { server.Close() })
-	data, err := json.Marshal(map[string]any{"token": token, "tenantA": a.ID, "tenantB": b.ID, "foreignCustomer": foreign.ID, "stopKey": key})
+	data, err := json.Marshal(map[string]any{"token": token, "adminToken": adminToken, "newOwnerToken": newOwnerToken, "targetUserID": users[2].ID, "tenantA": a.ID, "tenantB": b.ID, "foreignCustomer": foreign.ID, "stopKey": key})
 	requireOK(t, err)
 	requireOK(t, os.MkdirAll(filepath.Dir(fixturePath), 0700))
 	requireOK(t, os.WriteFile(fixturePath, data, 0600))

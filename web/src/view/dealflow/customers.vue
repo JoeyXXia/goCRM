@@ -6,8 +6,10 @@
       <el-input id="customer-keyword" v-model="search.keyword" class="max-w-xs" maxlength="128" />
       <label for="customer-sort">排序</label>
       <select id="customer-sort" v-model="search.sort" class="rounded border p-2">
-        <option value="id">创建顺序</option><option value="name">名称</option><option value="code">编号</option>
+        <option value="id">创建顺序</option><option value="name">名称</option><option value="code">编号</option><option value="nextFollowupAt">下次跟进</option>
       </select>
+      <label for="customer-followup">跟进状态</label>
+      <select id="customer-followup" v-model="search.followup" class="rounded border p-2"><option value="">全部</option><option value="overdue">已逾期</option><option value="scheduled">待跟进</option><option value="none">未安排</option></select>
       <label for="customer-order">方向</label>
       <select id="customer-order" v-model="search.order" class="rounded border p-2">
         <option value="desc">降序</option><option value="asc">升序</option>
@@ -15,7 +17,7 @@
       <el-button native-type="submit" :disabled="saving">查询</el-button>
     </form>
     <p v-if="error" role="alert">{{ error }}</p>
-    <el-table :data="result.list" row-key="id" v-loading="loading" empty-text="暂无可见客户">
+    <el-table :data="result.list" row-key="id" v-loading="loading" empty-text="当前筛选下暂无可见客户">
       <el-table-column label="客户名称" min-width="160">
         <template #default="{ row }"><RouterLink :to="{ name: 'DealflowCustomer', params: { id: row.id } }">{{ row.name }}</RouterLink></template>
       </el-table-column>
@@ -23,6 +25,7 @@
       <el-table-column label="负责人" prop="ownerName" />
       <el-table-column label="部门" prop="departmentName" />
       <el-table-column label="行业" prop="industry" />
+      <el-table-column label="下次跟进" min-width="180"><template #default="{ row }">{{ row.nextFollowupAt ? new Date(row.nextFollowupAt).toLocaleString() : '未安排' }}</template></el-table-column>
     </el-table>
     <el-pagination class="my-4" layout="total, sizes, prev, pager, next" :total="result.total"
       :page-sizes="[10, 20, 50, 100]" :current-page="search.page" :page-size="search.pageSize"
@@ -45,7 +48,7 @@ import { useDealflowSession } from '@/pinia/modules/dealflow-session'
 const props = defineProps<{ tenantId: string; canCreate: boolean }>()
 const router = useRouter()
 const session = useDealflowSession()
-const search = reactive({ page: 1, pageSize: 20, sort: 'id', order: 'desc', keyword: '' })
+const search = reactive({ page: 1, pageSize: 20, sort: 'id', order: 'desc', keyword: '', followup: '' })
 const result = ref<CustomerPage>({ list: [], total: 0, page: 1, pageSize: 20 })
 const draft = reactive({ name: '', industry: '', remark: '' })
 const loading = ref(false), saving = ref(false), error = ref('')

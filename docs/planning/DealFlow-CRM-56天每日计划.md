@@ -1,6 +1,6 @@
 # DealFlow CRM：56 天每日执行清单
 
-2026-11-13 当前本地验收范围为 Day 10。实际结果见 [Day 10 报告](../progress/2026-11-13-day10.md)。套餐、工作流、异步服务、Kafka 与 Kubernetes 保留于 [扩展实施计划](./DealFlow-CRM-扩展实施计划.md)。
+2026-11-13 当前本地验收范围为 Day 11。实际结果见 [Day 11 报告](../progress/2026-11-13-day11.md)。套餐、工作流、异步服务、Kafka 与 Kubernetes 保留于 [扩展实施计划](./DealFlow-CRM-扩展实施计划.md)。
 
 配套：[项目总计划](./DealFlow-CRM-项目总计划.md) · [面试与 AI 协作手册](./DealFlow-CRM-面试与AI协作手册.md)。
 

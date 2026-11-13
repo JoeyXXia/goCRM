@@ -1,0 +1,71 @@
+async (page) => {
+  const fixture = /* DAY10_FIXTURE */ null
+  const base = new URL('/', page.url()).href
+  const check = (condition, message) => { if (!condition) throw new Error(message) }
+  const login = async (token, path = '') => {
+    await page.goto(base)
+    await page.evaluate(token => { localStorage.setItem('token', token); sessionStorage.clear() }, token)
+    await page.goto('about:blank')
+    await page.goto(base + '#/dealflow' + path)
+  }
+  try {
+    await login(fixture.token)
+    await page.getByText('当前角色：销售').waitFor()
+    await page.getByRole('link', { name: '客户', exact: true }).click()
+    const form = page.getByRole('form', { name: '新增客户' })
+    await form.getByLabel('客户名称', { exact: true }).fill('Day11 浏览器客户')
+    const created = page.waitForResponse(r => r.url().endsWith('/dealflow/customers') && r.request().method() === 'POST')
+    await form.getByRole('button', { name: '创建客户' }).click()
+    const customer = (await (await created).json()).data
+    await page.getByRole('heading', { name: 'Day11 浏览器客户', exact: true }).waitFor()
+    const contact = page.getByRole('form', { name: '联系人表单' })
+    await contact.getByLabel('联系人姓名').fill('Day11 联系人')
+    await contact.getByLabel('联系人电话').fill('13800138000')
+    await contact.getByLabel('联系人邮箱').fill('buyer@example.test')
+    await contact.getByRole('button', { name: '保存联系人' }).click()
+    await page.getByRole('cell', { name: '13800138000', exact: true }).waitFor()
+    const followup = page.getByRole('form', { name: '新增跟进' })
+    await followup.getByLabel('跟进内容').fill('Day11 浏览器实际跟进')
+    await followup.getByLabel('下次跟进时间（留空取消安排）').fill('2026-11-12T10:00')
+    await followup.getByRole('button', { name: '保存跟进' }).click()
+    await page.getByText('Day11 浏览器实际跟进', { exact: true }).waitFor()
+    check(await page.getByRole('button', { name: '删除客户', exact: true }).isDisabled(), 'followup history did not disable deletion')
+    await page.getByRole('link', { name: '返回客户列表' }).click()
+    await page.getByLabel('跟进状态').selectOption('overdue')
+    await page.getByLabel('排序', { exact: true }).selectOption('nextFollowupAt')
+    await page.getByRole('button', { name: '查询', exact: true }).click()
+    await page.getByRole('link', { name: 'Day11 浏览器客户', exact: true }).waitFor()
+    await page.getByLabel('跟进状态').selectOption('none')
+    const filtered = page.waitForResponse(r => r.url().includes('/dealflow/customers?') && r.url().includes('followup=none'))
+    await page.getByRole('button', { name: '查询', exact: true }).click()
+    await filtered
+    await page.getByText('当前筛选下暂无可见客户', { exact: true }).waitFor()
+    await page.getByLabel('当前企业').selectOption(String(fixture.tenantB))
+    await page.getByText('当前角色：财务').waitFor()
+    await page.getByRole('link', { name: '客户', exact: true }).click()
+    await page.getByRole('link', { name: '企业 B 客户', exact: true }).click()
+    await page.getByRole('cell', { name: 'b***@example.test', exact: true }).waitFor()
+    check(await page.getByRole('form', { name: '联系人表单' }).count() === 0, 'read-only contact editor visible')
+    await login(fixture.adminToken, '/customers/' + customer.id)
+    const transfer = page.getByRole('form', { name: '转移负责人' })
+    await transfer.getByLabel('新负责人').selectOption(String(fixture.targetUserID))
+    await transfer.getByRole('button', { name: '确认转移', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /确定|Confirm|OK/ }).click()
+    await page.getByText('负责人 销售乙 · 部门 转移目标团队', { exact: true }).waitFor()
+    await page.getByText(/转移负责人.*负责人.*→/).waitFor()
+    await page.screenshot({ path: 'output/day11-transfer.png', fullPage: true })
+    await login(fixture.token, '/customers/' + customer.id)
+    await page.getByText('客户不存在、无权访问或暂时无法加载。').waitFor()
+    await page.getByText('确定', { exact: true }).click()
+    await login(fixture.newOwnerToken, '/customers/' + customer.id)
+    await page.getByRole('heading', { name: 'Day11 浏览器客户', exact: true }).waitFor()
+    await page.getByRole('cell', { name: '13800138000', exact: true }).waitFor()
+    await page.getByText('Day11 浏览器实际跟进', { exact: true }).waitFor()
+    check(await page.getByRole('form', { name: '新增跟进' }).count() === 1, 'new owner cannot add followup')
+    check(await page.getByRole('form', { name: '转移负责人' }).count() === 0, 'sales can transfer customer')
+    await page.screenshot({ path: 'output/day11-new-owner.png', fullPage: true })
+    return 'Passed Day11: followup, filters, masking, transfer, audit, old-token denial, new-owner access'
+  } finally {
+    await page.request.post('http://127.0.0.1:8888/__day10/stop?key=' + encodeURIComponent(fixture.stopKey))
+  }
+}
