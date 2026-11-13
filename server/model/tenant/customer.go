@@ -1,14 +1,17 @@
 package tenant
 
+import "time"
+
 type Customer struct {
-	ID           uint64 `json:"id,string" swaggertype:"string"`
-	TenantID     uint64 `json:"tenantId,string" swaggertype:"string"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	OwnerID      uint64 `json:"ownerId,string" swaggertype:"string"`
-	DepartmentID uint64 `json:"departmentId,string" swaggertype:"string"`
-	Industry     string `json:"industry"`
-	Remark       string `json:"remark"`
+	ID             uint64     `json:"id,string" swaggertype:"string"`
+	TenantID       uint64     `json:"tenantId,string" swaggertype:"string"`
+	Code           string     `json:"code"`
+	Name           string     `json:"name"`
+	OwnerID        uint64     `json:"ownerId,string" swaggertype:"string"`
+	DepartmentID   uint64     `json:"departmentId,string" swaggertype:"string"`
+	Industry       string     `json:"industry"`
+	Remark         string     `json:"remark"`
+	NextFollowupAt *time.Time `json:"nextFollowupAt"`
 }
 
 func (Customer) TableName() string { return "crm_customers" }

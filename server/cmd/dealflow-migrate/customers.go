@@ -39,6 +39,7 @@ func migrateCustomers(ctx context.Context, conn *sql.Conn) error {
         SELECT c.TABLE_NAME, GROUP_CONCAT(CONCAT(c.COLUMN_NAME,':',c.COLUMN_TYPE,':',c.IS_NULLABLE,':',c.EXTRA) ORDER BY c.ORDINAL_POSITION)
         FROM information_schema.COLUMNS c JOIN information_schema.TABLES t USING(TABLE_SCHEMA,TABLE_NAME)
         WHERE c.TABLE_SCHEMA=DATABASE() AND t.ENGINE='InnoDB' AND c.TABLE_NAME IN ('crm_customers','crm_contacts')
+          AND c.COLUMN_NAME <> 'next_followup_at'
         GROUP BY c.TABLE_NAME`, map[string]string{
 		"crm_customers": "id:bigint unsigned:NO:auto_increment,tenant_id:bigint unsigned:NO:,code:varchar(38):NO:,name:varchar(128):NO:,owner_id:bigint unsigned:NO:,department_id:bigint unsigned:NO:,industry:varchar(64):NO:,remark:varchar(512):NO:",
 		"crm_contacts":  "id:bigint unsigned:NO:auto_increment,tenant_id:bigint unsigned:NO:,customer_id:bigint unsigned:NO:,name:varchar(128):NO:,phone:varchar(32):NO:,email:varchar(254):NO:,title:varchar(64):NO:",
