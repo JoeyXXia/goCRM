@@ -48,9 +48,10 @@ func crmResult(c *gin.Context, data any, err error) {
 // @Param X-Tenant-ID header string true "当前租户 ID"
 // @Param page query int false "页码，默认 1，最大 1000000"
 // @Param pageSize query int false "每页 1 至 100，默认 20"
-// @Param sort query string false "id、name 或 code，默认 id"
+// @Param sort query string false "id、name、code 或 nextFollowupAt，默认 id"
 // @Param order query string false "asc 或 desc，默认 desc"
 // @Param keyword query string false "客户名称包含文本，最大 128 字符"
+// @Param followup query string false "none、overdue 或 scheduled，省略表示全部"
 // @Success 200 {object} response.Response{data=tenant.CustomerPage}
 // @Failure 400,401,403,500 {object} response.Response
 // @Router /dealflow/customers [get]
@@ -59,11 +60,12 @@ func (api DepartmentAPI) Customers(c *gin.Context) {
 	if !ok {
 		return
 	}
-	values, ok := crmQuery(c, "page", "pageSize", "sort", "order", "keyword")
+	values, ok := crmQuery(c, "page", "pageSize", "sort", "order", "keyword", "followup")
 	if !ok {
 		return
 	}
 	input := service.CustomerSearch{Page: 1, PageSize: 20, Sort: "id", Order: "desc", Keyword: strings.TrimSpace(values.Get("keyword"))}
+	input.Followup = values.Get("followup")
 	for _, entry := range []struct {
 		key    string
 		target *int
@@ -224,7 +226,7 @@ func (api DepartmentAPI) DeleteCustomer(c *gin.Context) {
 // @Produce json
 // @Param X-Tenant-ID header string true "当前租户 ID"
 // @Param id path string true "客户 ID"
-// @Success 200 {object} response.Response{data=[]tenant.Contact}
+// @Success 200 {object} response.Response{data=[]tenant.ContactView}
 // @Failure 400,401,403,404,500 {object} response.Response
 // @Router /dealflow/customers/{id}/contacts [get]
 func (api DepartmentAPI) Contacts(c *gin.Context) {
@@ -268,7 +270,7 @@ func (api DepartmentAPI) CreateContact(c *gin.Context) {
 // @Produce json
 // @Param X-Tenant-ID header string true "当前租户 ID"
 // @Param id path string true "联系人 ID"
-// @Success 200 {object} response.Response{data=tenant.Contact}
+// @Success 200 {object} response.Response{data=tenant.ContactView}
 // @Failure 400,401,403,404,500 {object} response.Response
 // @Router /dealflow/contacts/{id} [get]
 func (api DepartmentAPI) Contact(c *gin.Context) {
@@ -287,7 +289,7 @@ func (api DepartmentAPI) Contact(c *gin.Context) {
 // @Produce json
 // @Param X-Tenant-ID header string true "当前租户 ID"
 // @Param ids query string true "逗号分隔的联系人 ID，最多 100 项"
-// @Success 200 {object} response.Response{data=[]tenant.Contact}
+// @Success 200 {object} response.Response{data=[]tenant.ContactView}
 // @Failure 400,401,403,500 {object} response.Response
 // @Router /dealflow/contacts/batch [get]
 func (api DepartmentAPI) ContactBatch(c *gin.Context) {

@@ -58,6 +58,7 @@ var enterprisePolicy = sync.OnceValues(func() (*casbin.SyncedEnforcer, error) {
 			rules = append(rules, []string{grant.role, "customers", "create", ""})
 		}
 	}
+	rules = append(rules, []string{administrator, "customers", "transfer", "ALL"}, []string{"manager", "customers", "transfer", "DEPARTMENT_AND_CHILDREN"})
 	_, err = enforcer.AddPolicies(rules)
 	return enforcer, err
 })

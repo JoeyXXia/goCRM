@@ -32,7 +32,9 @@ type RenameDepartmentInput struct {
 }
 
 func RequestID(c *gin.Context) {
-	c.Header("X-Request-ID", uuid.NewString())
+	id := uuid.NewString()
+	c.Header("X-Request-ID", id)
+	c.Request = c.Request.WithContext(service.WithRequestID(c.Request.Context(), id))
 }
 
 func authenticatedUserID(c *gin.Context) uint64 {
@@ -212,6 +214,8 @@ func failService(c *gin.Context, err error) {
 		return
 	}
 	switch {
+	case errors.Is(err, service.ErrCustomerHasHistory):
+		fail(c, http.StatusConflict, "客户已有跟进记录，保留客户及历史")
 	case errors.Is(err, service.ErrCRMInput):
 		fail(c, http.StatusBadRequest, "客户或联系人参数无效")
 	case errors.Is(err, service.ErrCustomerNotFound):

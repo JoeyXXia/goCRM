@@ -495,6 +495,10 @@ func TestDay4And5AccessIsolation(t *testing.T) {
 		call(t, "DELETE", url(leaf.ID), tokenA, "", 200, tenantA.ID)
 		call(t, "DELETE", url(child.ID), tokenA, "", 200, tenantA.ID)
 	})
+	t.Run("day11_customer_activity", func(t *testing.T) {
+		verifyCustomerActivity(t, activityFixture{db: tx, ctx: ctx, enterprise: tenantA, foreign: tenantB, department: deptA,
+			admin: userA, oldOwner: userB, adminToken: tokenA, oldToken: tokenB, call: call})
+	})
 	t.Run("recheck_membership_tenant_and_user_status", func(t *testing.T) {
 		membership := tx.Model(&model.Membership{}).Where("tenant_id = ? AND user_id = ?", tenantA.ID, userA.ID)
 		checkWorkspaces := func(want ...tenant.Workspace) {
